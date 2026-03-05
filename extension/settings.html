@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title data-i18n-title="settingsTitle">AI Energy Monitor - Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #1c3a6c; padding: 24px; max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .intro { font-size: 13px; color: #6b7a8d; margin-bottom: 24px; }
+    .section { background: #fff; border: 1px solid #dde1e8; border-radius: 6px; padding: 20px; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .section-desc { font-size: 12px; color: #6b7a8d; margin-bottom: 14px; line-height: 1.5; }
+    .service-list { list-style: none; }
+    .service-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eef0f4; }
+    .service-item:last-child { border-bottom: none; }
+    .service-info { display: flex; flex-direction: column; }
+    .service-name { font-size: 14px; font-weight: 600; }
+    .service-url { font-size: 11px; color: #6b7a8d; }
+    .service-tag { font-size: 10px; color: #fff; background: #003770; padding: 2px 6px; border-radius: 3px; margin-left: 8px; }
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #ccd2da; border-radius: 24px; cursor: pointer; transition: 0.2s; }
+    .toggle .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+    .toggle input:checked + .slider { background: #2ac878; }
+    .toggle input:checked + .slider:before { transform: translateX(20px); }
+    .saved-msg { display: none; font-size: 12px; color: #2ac878; font-weight: 700; margin-top: 8px; }
+    .btn { padding: 8px 16px; background: #003770; color: #fff; border: none; border-radius: 4px; font: 600 13px Arial; cursor: pointer; margin-top: 12px; }
+    .btn:hover { background: #002855; }
+    .btn.grey { background: #6b7a8d; }
+    .link-row { margin-top: 12px; }
+    .link-row a { color: #41c5ff; font-size: 12px; text-decoration: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1 data-i18n="settingsHeading">Settings</h1>
+  <p class="intro" data-i18n="settingsIntro">Configure which AI services should be tracked.</p>
+
+  <div class="section">
+    <div class="section-title" data-i18n="coreServices">Core Services (always active)</div>
+    <div class="section-desc" data-i18n="coreServicesDesc">These services are always tracked.</div>
+    <ul class="service-list">
+      <li class="service-item"><div class="service-info"><span class="service-name">ChatGPT</span><span class="service-url">chatgpt.com</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+      <li class="service-item"><div class="service-info"><span class="service-name">Google Gemini</span><span class="service-url">gemini.google.com</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+      <li class="service-item"><div class="service-info"><span class="service-name">Perplexity</span><span class="service-url">perplexity.ai</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="standardServices">Standard Services</div>
+    <div class="section-desc" data-i18n="standardServicesDesc">You can deactivate these services if needed.</div>
+    <ul class="service-list" id="standardList">
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">Microsoft Copilot</span><span class="service-url">copilot.microsoft.com</span></div>
+        <label class="toggle"><input type="checkbox" data-service="copilot" checked><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">Claude</span><span class="service-url">claude.ai</span></div>
+        <label class="toggle"><input type="checkbox" data-service="claude" checked><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name" data-i18n="googleSearch">Google Search</span><span class="service-url">google.com / google.de</span></div>
+        <label class="toggle"><input type="checkbox" data-service="google" checked><span class="slider"></span></label>
+      </li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="optionalServices">Optional Services</div>
+    <div class="section-desc" data-i18n="optionalServicesDesc">Enable additional AI services that you or your colleagues use.</div>
+    <ul class="service-list" id="optionalList">
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">DeepSeek</span><span class="service-url">chat.deepseek.com</span></div>
+        <label class="toggle"><input type="checkbox" data-service="deepseek"><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">Grok (xAI)</span><span class="service-url">grok.com</span></div>
+        <label class="toggle"><input type="checkbox" data-service="grok"><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">Meta AI</span><span class="service-url">meta.ai</span></div>
+        <label class="toggle"><input type="checkbox" data-service="meta"><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">Poe</span><span class="service-url">poe.com</span></div>
+        <label class="toggle"><input type="checkbox" data-service="poe"><span class="slider"></span></label>
+      </li>
+      <li class="service-item">
+        <div class="service-info"><span class="service-name">GitHub Copilot</span><span class="service-url">github.com/copilot</span></div>
+        <label class="toggle"><input type="checkbox" data-service="github-copilot"><span class="slider"></span></label>
+      </li>
+    </ul>
+    <div class="saved-msg" id="savedMsg" data-i18n="saved">Saved!</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="testcenterAndData">Test Center & Data</div>
+    <div class="section-desc" data-i18n="testcenterAndDataDesc">Test center for checking the extension and managing stored data.</div>
+    <button class="btn" id="btnDevTest" data-i18n="openTestcenter">Open Test Center</button>
+    <button class="btn grey" id="btnClearAll" data-i18n="clearAllData">Delete all tracking data</button>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <nav class="nav">
+    <span class="nav-brand" data-i18n="navBrand">AI Energy Monitor</span>
+  </nav>
+
+  <div class="container">
+    <!-- Tagesverbrauch -->
+    <div class="stat-main">
+      <span class="stat-num" id="todayWh">0</span>
+      <span class="stat-unit" data-i18n="whToday">Wh today</span>
+    </div>
+    <div class="stat-compare" id="todayCompare"></div>
+
+    <!-- Sparkline Wochenverlauf -->
+    <div class="sparkline-section">
+      <div class="sparkline-label" data-i18n="last7Days">Last 7 days</div>
+      <canvas id="sparkline" height="40" style="width:100%;display:block;"></canvas>
+      <div class="sparkline-total"><span data-i18n="week">Week:</span> <strong id="weekWh">0</strong> Wh</div>
+    </div>
+
+    <!-- Aufschluesselung -->
+    <table class="breakdown" id="serviceList"></table>
+
+    <!-- Letzter Prompt -->
+    <div class="last-prompt" id="lastPromptSection" style="display:none">
+      <div class="last-prompt-label" data-i18n="lastPrompt">Last prompt</div>
+      <div class="last-prompt-text" id="lastPromptText"></div>
+      <div class="last-prompt-meta" id="lastPromptMeta"></div>
+    </div>
+
+    <!-- Tipp -->
+    <div class="tip" id="tipSection">
+      <span class="tip-label" data-i18n="tipLabel">Tip:</span>
+      <span id="tipText"></span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button id="exportJson" class="btn">JSON</button>
+      <button id="exportCsv" class="btn">CSV</button>
+      <button id="openDevTest" class="btn dev" data-i18n="settingsBtn">Settings</button>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Build artifacts
+*.zip
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Dashboard (internal/private)
+dashboard/
+
+# Docs (only research is tracked)
+docs/*
+!docs/research/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

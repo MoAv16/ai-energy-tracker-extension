@@ -1,0 +1,115 @@
+{
+  "manifest_version": 3,
+  "name": "__MSG_appName__",
+  "version": "3.2.1",
+  "description": "__MSG_appDesc__",
+  "default_locale": "en",
+  "permissions": [
+    "storage",
+    "webNavigation",
+    "notifications",
+    "idle",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://chatgpt.com/*",
+    "*://chat.com/*",
+    "*://gpt.com/*",
+    "*://chat.openai.com/*",
+    "*://openai.com/*",
+    "*://gemini.google.com/*",
+    "*://bard.google.com/*",
+    "*://aistudio.google.com/*",
+    "*://copilot.com/*",
+    "*://www.copilot.com/*",
+    "*://copilot.microsoft.com/*",
+    "*://copilot.cloud.microsoft/*",
+    "*://m365.cloud.microsoft/*",
+    "*://m365copilot.com/*",
+    "*://www.bing.com/*",
+    "*://m.bing.com/*",
+    "*://edgeservices.bing.com/*",
+    "*://www.perplexity.ai/*",
+    "*://perplexity.ai/*",
+    "*://claude.ai/*",
+    "*://www.google.com/*",
+    "*://www.google.de/*",
+    "*://chat.deepseek.com/*",
+    "*://grok.com/*",
+    "*://x.com/*",
+    "*://www.meta.ai/*",
+    "*://meta.ai/*",
+    "*://poe.com/*",
+    "*://www.poe.com/*",
+    "*://github.com/*",
+    "*://copilot.github.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://chatgpt.com/*",
+        "*://chat.com/*",
+        "*://gpt.com/*",
+        "*://chat.openai.com/*",
+        "*://openai.com/chatgpt*",
+        "*://gemini.google.com/*",
+        "*://bard.google.com/*",
+        "*://aistudio.google.com/*",
+        "*://copilot.com/*",
+        "*://www.copilot.com/*",
+        "*://copilot.microsoft.com/*",
+        "*://copilot.cloud.microsoft/*",
+        "*://m365.cloud.microsoft/*",
+        "*://m365copilot.com/*",
+        "*://www.bing.com/chat*",
+        "*://www.bing.com/copilot*",
+        "*://www.bing.com/new*",
+        "*://m.bing.com/chat*",
+        "*://edgeservices.bing.com/edgesvc/chat*",
+        "*://www.perplexity.ai/*",
+        "*://perplexity.ai/*",
+        "*://claude.ai/*",
+        "*://chat.deepseek.com/*",
+        "*://grok.com/*",
+        "*://x.com/i/grok*",
+        "*://www.meta.ai/*",
+        "*://meta.ai/*",
+        "*://poe.com/*",
+        "*://www.poe.com/*",
+        "*://github.com/copilot*",
+        "*://copilot.github.com/*"
+      ],
+      "js": [
+        "content/universal.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://www.google.com/*",
+        "*://www.google.de/*"
+      ],
+      "js": [
+        "content/google.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "settings.html"
+}
