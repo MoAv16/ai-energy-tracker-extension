@@ -1,14 +1,30 @@
-# AI Energy Monitor
+<p align="center">
+  <img src="Logo/AI Monitor Logo Chrome Store.png" alt="AI Energy Monitor Banner" width="100%">
+</p>
 
-**Track the energy consumption of your AI usage in watt-hours.**
+<p align="center">
+  <img src="Logo/AI Monitor - Logo 128px.png" alt="AI Energy Monitor Logo" width="80">
+</p>
 
-A Chrome extension that monitors how much energy your AI chatbot interactions consume – with real-time tracking, everyday comparisons, and energy-saving tips. All data stays local on your device.
+<h1 align="center">AI Energy Monitor</h1>
+
+<p align="center">
+  <strong>Track the energy consumption of your AI usage in watt-hours.</strong><br>
+  A Chrome extension that monitors how much energy your AI chatbot interactions consume –<br>
+  with real-time tracking, everyday comparisons, and energy-saving tips. All data stays local.
+</p>
 
 ---
 
 ## The Problem
 
 A single ChatGPT query uses about **10x more electricity** than a Google search. With over 800 million weekly ChatGPT users worldwide, the energy impact of AI is massive – yet invisible. Most people have no idea how much power their AI usage actually costs.
+
+<p align="center">
+  <img src="Logo/global-data-centre-electricity-consumption-by-sensitivity-case-2020-2035.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
+  <br>
+  <sub>Source: IEA – Global data centre electricity consumption forecast (2020–2035)</sub>
+</p>
 
 ## The Solution
 
