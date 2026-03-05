@@ -45,8 +45,8 @@ body {
   margin-bottom: 12px;
 }
 
-/* Sparkline */
-.sparkline-section {
+/* Week view */
+.week-section {
   background: #fff;
   border: 1px solid #dde1e8;
   border-radius: 4px;
@@ -54,20 +54,46 @@ body {
   margin-bottom: 10px;
 }
 
-.sparkline-label {
+.week-label {
   font-size: 10px;
   text-transform: uppercase;
   color: #6b7a8d;
   letter-spacing: 0.3px;
+  margin-bottom: 6px;
 }
 
-.sparkline-total {
+.week-days {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.week-day {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #1c3a6c;
+  padding: 3px 0;
+}
+
+.week-day.today {
+  color: #003770;
+  background: #eef6ff;
+  border-radius: 3px;
+}
+
+.week-day.future {
+  color: #c5cdd8;
+}
+
+.week-total {
   font-size: 11px;
   color: #6b7a8d;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-.sparkline-total strong { color: #003770; }
+.week-total strong { color: #003770; }
 
 /* Breakdown table */
 .breakdown {

@@ -59,11 +59,16 @@ function getToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getLast7Days() {
+function getCurrentWeekDays() {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun, 1=Mon...
+  const mondayOffset = (dow === 0 ? -6 : 1 - dow);
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + mondayOffset);
   const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     days.push(d.toISOString().slice(0, 10));
   }
   return days;
@@ -76,40 +81,64 @@ function formatTime(ms) {
   return (min / 60).toFixed(1) + _("hourUnit");
 }
 
-function drawSparkline(values) {
-  const canvas = document.getElementById("sparkline");
+var DAY_LABELS = [
+  _("dayMon"), _("dayTue"), _("dayWed"), _("dayThu"),
+  _("dayFri"), _("daySat"), _("daySun")
+];
+
+function renderWeekDays(weekDays) {
+  var container = document.getElementById("weekDays");
+  container.innerHTML = "";
+  var todayStr = getToday();
+  for (var i = 0; i < 7; i++) {
+    var span = document.createElement("span");
+    span.className = "week-day";
+    span.textContent = DAY_LABELS[i];
+    if (weekDays[i] === todayStr) span.classList.add("today");
+    if (weekDays[i] > todayStr) span.classList.add("future");
+    container.appendChild(span);
+  }
+}
+
+function drawWeekChart(values, weekDays) {
+  var canvas = document.getElementById("weekChart");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
+  var ctx = canvas.getContext("2d");
   canvas.width = canvas.offsetWidth;
-  const w = canvas.width, h = canvas.height;
+  var w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
 
-  const max = Math.max(...values, 1);
-  const step = w / Math.max(values.length - 1, 1);
+  var todayStr = getToday();
+  var max = Math.max.apply(null, values.concat([1]));
+  var barWidth = (w / 7) * 0.6;
+  var gap = (w / 7) * 0.4;
 
-  ctx.beginPath();
-  ctx.moveTo(0, h);
-  values.forEach((v, i) => ctx.lineTo(i * step, h - (v / max) * (h - 6)));
-  ctx.lineTo(w, h);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(65, 197, 255, 0.15)";
-  ctx.fill();
+  for (var i = 0; i < 7; i++) {
+    var x = (w / 7) * i + gap / 2;
+    var barH = (values[i] / max) * (h - 16);
+    var y = h - barH;
+    var isFuture = weekDays[i] > todayStr;
+    var isToday = weekDays[i] === todayStr;
 
-  ctx.beginPath();
-  values.forEach((v, i) => {
-    const x = i * step, y = h - (v / max) * (h - 6);
-    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = "#41c5ff";
-  ctx.lineWidth = 2;
-  ctx.stroke();
+    // Bar
+    ctx.fillStyle = isFuture ? "#e8ecf1" : (isToday ? "#003770" : "#41c5ff");
+    // roundRect with fallback for older browsers
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, barWidth, barH, 2);
+    } else {
+      ctx.rect(x, y, barWidth, barH);
+    }
+    ctx.fill();
 
-  const lastX = (values.length - 1) * step;
-  const lastY = h - (values[values.length - 1] / max) * (h - 6);
-  ctx.beginPath();
-  ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
-  ctx.fillStyle = "#003770";
-  ctx.fill();
+    // Wh label above bar (only for past/today with values)
+    if (!isFuture && values[i] > 0) {
+      ctx.fillStyle = "#6b7a8d";
+      ctx.font = "9px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(values[i].toFixed(1), x + barWidth / 2, y - 3);
+    }
+  }
 }
 
 function downloadFile(content, filename, type) {
@@ -194,8 +223,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function renderPopup() {
   var today = getToday();
-  const days = getLast7Days();
-  const keys = days.map(d => "day_" + d);
+  var days = getCurrentWeekDays();
+  var keys = days.map(function(d) { return "day_" + d; });
 
   chrome.storage.local.get(keys, (allData) => {
     if (chrome.runtime.lastError) {
@@ -213,9 +242,14 @@ document.addEventListener("DOMContentLoaded", function() {
       var dd = allData["day_" + d];
       return dd ? (dd.totalWh || 0) : 0;
     });
-    drawSparkline(dailyWh);
+    renderWeekDays(days);
+    drawWeekChart(dailyWh, days);
 
-    var weekWh = dailyWh.reduce(function(a, b) { return a + b; }, 0);
+    // Only sum up to today (not future days)
+    var weekWh = 0;
+    for (var i = 0; i < days.length; i++) {
+      if (days[i] <= today) weekWh += dailyWh[i];
+    }
     document.getElementById("weekWh").textContent = weekWh.toFixed(1);
 
     var table = document.getElementById("serviceList");

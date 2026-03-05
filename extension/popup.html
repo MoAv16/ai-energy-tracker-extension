@@ -17,11 +17,12 @@
     </div>
     <div class="stat-compare" id="todayCompare"></div>
 
-    <!-- Sparkline Wochenverlauf -->
-    <div class="sparkline-section">
-      <div class="sparkline-label" data-i18n="last7Days">Last 7 days</div>
-      <canvas id="sparkline" height="40" style="width:100%;display:block;"></canvas>
-      <div class="sparkline-total"><span data-i18n="week">Week:</span> <strong id="weekWh">0</strong> Wh</div>
+    <!-- Wochenansicht Mo-So -->
+    <div class="week-section">
+      <div class="week-label" data-i18n="currentWeek">Current week</div>
+      <div class="week-days" id="weekDays"></div>
+      <canvas id="weekChart" height="80" style="width:100%;display:block;"></canvas>
+      <div class="week-total"><span data-i18n="week">Week:</span> <strong id="weekWh">0</strong> Wh</div>
     </div>
 
     <!-- Aufschluesselung -->
