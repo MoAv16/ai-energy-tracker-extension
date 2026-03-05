@@ -21,7 +21,7 @@
 A single ChatGPT query uses about **10x more electricity** than a Google search. With over 800 million weekly ChatGPT users worldwide, the energy impact of AI is massive – yet invisible. Most people have no idea how much power their AI usage actually costs.
 
 <p align="center">
-  <img src="Logo/global-data-centre-electricity-consumption-by-sensitivity-case-2020-2035.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
+  <img src="Logo/IEA Consumption Chart.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
   <br>
   <sub>Source: IEA – Global data centre electricity consumption forecast (2020–2035)</sub>
 </p>
