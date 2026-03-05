@@ -134,4 +134,4 @@ See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
 ## License
 
-All rights reserved.
+This project is licensed under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/).
