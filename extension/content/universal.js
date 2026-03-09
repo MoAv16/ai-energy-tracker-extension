@@ -92,7 +92,7 @@
     var DEBOUNCE = 3000;
     var suggestionBanner = null;
 
-    // Finde das Eingabefeld - breit gefasst
+    // Finde das Eingabefeld
     function findInput() {
       // Versuch 1: Aktives Element wenn es editierbar ist
       var active = document.activeElement;
@@ -155,7 +155,7 @@
       }
     }, true);
 
-    // Klick auf JEDEN Button beobachten der nach "Senden" aussieht
+    // Klick auf jeden Button beobachten der nach "Senden" aussieht
     document.addEventListener("click", function(e) {
       var btn = e.target.closest("button");
       if (!btn) return;
