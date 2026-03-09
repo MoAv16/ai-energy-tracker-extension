@@ -15,7 +15,7 @@
 </p>
 
 ---
-
+ 
 ## The Problem
 
 A single ChatGPT query uses about **10x more electricity** than a Google search. With over 800 million weekly ChatGPT users worldwide, the energy impact of AI is massive – yet invisible. Most people have no idea how much power their AI usage actually costs.
