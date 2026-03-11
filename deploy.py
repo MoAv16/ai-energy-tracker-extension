@@ -51,11 +51,28 @@ def get_access_token(client_id, client_secret, refresh_token):
     }).encode()
 
     req = urllib.request.Request(OAUTH_TOKEN_URL, data=data, method="POST")
-    with urllib.request.urlopen(req) as resp:
-        result = json.loads(resp.read())
+
+    try:
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        body = json.loads(e.read().decode())
+        if body.get("error") == "invalid_grant":
+            print("=" * 60)
+            print("REFRESH TOKEN EXPIRED OR REVOKED")
+            print("")
+            print("Renew it via OAuth Playground:")
+            print("  https://developers.google.com/oauthplayground")
+            print("")
+            print("Then update the CWS_REFRESH_TOKEN secret in GitHub.")
+            print("See: docs/workflow/chrome-web-store-deploy.md")
+            print("=" * 60)
+        else:
+            print(f"Error obtaining access token ({e.code}): {body}")
+        sys.exit(1)
 
     if "access_token" not in result:
-        print(f"Error: Could not obtain access token: {result}")
+        print(f"Error: Unexpected token response: {result}")
         sys.exit(1)
 
     return result["access_token"]
