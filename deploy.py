@@ -190,7 +190,7 @@ def main():
     print(f"Upload result: {json.dumps(result, indent=2)}")
 
     upload_state = result.get("uploadState")
-    if upload_state not in ("SUCCESS", "IN_PROGRESS"):
+    if upload_state not in ("SUCCESS", "SUCCEEDED", "IN_PROGRESS"):
         print(f"Upload failed with state: {upload_state}")
         sys.exit(1)
 
