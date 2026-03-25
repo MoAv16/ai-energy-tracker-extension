@@ -218,6 +218,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 
+  if (msg.type === "real-token-data") {
+    updateWithRealTokens(msg.service, msg.promptTokens || 0, msg.responseTokens || 0);
+    return;
+  }
+
   if (msg.type === "get-stats") {
     getDayData(getToday()).then(data => sendResponse(data));
     return true;
@@ -227,6 +232,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function updateResponseTokens(serviceKey, responseText) {
   const today = getToday();
   const dayData = await getDayData(today);
+
+  // Skip if the last request already has verified real token data from the interceptor.
+  // This prevents the DOM-based estimate from overwriting accurate values.
+  const reqs = dayData.requests;
+  if (reqs.length > 0) {
+    const last = reqs[reqs.length - 1];
+    if (last.service === serviceKey && last.realTokens) return;
+  }
+
   const tokens = estimateTokens(responseText);
   const extraWh = tokens * (SERVICES[serviceKey]?.whPerToken || 0);
 
@@ -244,6 +258,46 @@ async function updateResponseTokens(serviceKey, responseText) {
       last.wh += Math.round(extraWh * 100) / 100;
     }
   }
+
+  await saveDayData(today, dayData);
+  await updateBadge();
+}
+
+// Replaces the estimated token counts for the last request with real values
+// received from the MAIN world fetch interceptor. Uses a delta approach so the
+// function is correct regardless of whether updateResponseTokens already ran.
+async function updateWithRealTokens(serviceKey, promptTokens, responseTokens) {
+  const today = getToday();
+  const dayData = await getDayData(today);
+
+  if (!dayData.services[serviceKey]) return;
+
+  // Find the last request record for this service
+  let lastIdx = -1;
+  for (let i = dayData.requests.length - 1; i >= 0; i--) {
+    if (dayData.requests[i].service === serviceKey) { lastIdx = i; break; }
+  }
+  if (lastIdx === -1) return;
+
+  const last = dayData.requests[lastIdx];
+  const svc = dayData.services[serviceKey];
+
+  // Calculate the difference between new (real) and old (estimated) wh
+  const oldWh = last.wh || 0;
+  const newWh = calcWh(serviceKey, promptTokens, responseTokens);
+  const whDiff = newWh - oldWh;
+
+  // Adjust service totals by replacing the old estimates with real values
+  svc.promptTokens  = (svc.promptTokens  || 0) - (last.promptTokens  || 0) + promptTokens;
+  svc.responseTokens = (svc.responseTokens || 0) - (last.responseTokens || 0) + responseTokens;
+  svc.wh = (svc.wh || 0) + whDiff;
+  dayData.totalWh = (dayData.totalWh || 0) + whDiff;
+
+  // Overwrite the individual request record with verified data
+  last.promptTokens  = promptTokens;
+  last.responseTokens = responseTokens;
+  last.wh = Math.round(newWh * 100) / 100;
+  last.realTokens = true; // Prevents updateResponseTokens from overwriting this
 
   await saveDayData(today, dayData);
   await updateBadge();

@@ -92,6 +92,20 @@
     var DEBOUNCE = 3000;
     var suggestionBanner = null;
 
+    // Receive real token data from the MAIN world interceptor (interceptor.js)
+    // and forward it to the background service worker.
+    window.addEventListener('message', function(e) {
+      if (e.source !== window) return;
+      if (!e.data || e.data.type !== 'ai-real-tokens') return;
+      if (e.data.service !== service) return;
+      chrome.runtime.sendMessage({
+        type: 'real-token-data',
+        service: service,
+        promptTokens: e.data.promptTokens || 0,
+        responseTokens: e.data.responseTokens || 0
+      });
+    });
+
     // Finde das Eingabefeld
     function findInput() {
       // Versuch 1: Aktives Element wenn es editierbar ist
