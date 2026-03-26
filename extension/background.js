@@ -1,22 +1,116 @@
 // AI Energy Monitor v3 - Background Service Worker
 var _ = chrome.i18n.getMessage;
 
-// --- Konstanten ---
-// Standard-Dienste (immer aktiv)
-const SERVICES = {
-  chatgpt:    { whBase: 3.0, whPerToken: 0.0003, label: "ChatGPT" },
-  copilot:    { whBase: 3.0, whPerToken: 0.0003, label: "Microsoft Copilot" },
-  gemini:     { whBase: 2.5, whPerToken: 0.00025, label: "Google Gemini" },
-  claude:     { whBase: 2.5, whPerToken: 0.00025, label: "Claude" },
-  perplexity: { whBase: 2.5, whPerToken: 0.00025, label: "Perplexity" },
-  google:     { whBase: 0.3, whPerToken: 0, label: "Google Search" },
-  // Optionale Dienste (nur aktiv wenn in Einstellungen aktiviert)
-  deepseek:       { whBase: 2.5, whPerToken: 0.00025, label: "DeepSeek" },
-  grok:           { whBase: 3.0, whPerToken: 0.0003, label: "Grok" },
-  meta:           { whBase: 2.5, whPerToken: 0.00025, label: "Meta AI" },
-  poe:            { whBase: 2.5, whPerToken: 0.00025, label: "Poe" },
-  "github-copilot": { whBase: 3.0, whPerToken: 0.0003, label: "GitHub Copilot" }
+// --- Energie-Modell: Profile ---
+// Drei kalibrierte Quell-Profile. Das aktive Profil wird aus chrome.storage.local geladen.
+// Formel: E(Wh) = whBase + N_out * whPerToken
+//   whBase     = fixer Overhead (Server-Start, Input-Prefill, TTFT-Latenz)
+//   whPerToken = Decode-Aufwand pro OUTPUT-Token (autoregressive Generation)
+//
+// Skalierungsfaktoren (Referenz: Jegham @ ChatGPT 300 Out-Token = 0.435 Wh):
+//   jegham: 1.000x  — empirische Messung, konservativ   (Jegham et al. arXiv:2505.09598)
+//   altman: 0.782x  — OpenAI-CEO, 0.34 Wh Durchschnitt (blog.samaltman.com, Jun. 2025)
+//   epoch:  0.465x  — FLOP-basiert, 0.30 Wh @ 100in+500out (Epoch AI, Feb. 2025)
+
+// Token-Schätzung
+const CHARS_PER_TOKEN      = 4;    // Zeichen pro Token, Englisch BPE (3.8–4.2)
+const DECODE_PREFILL_RATIO = 2.5;  // β: Output-Tokens 2.5x teurer als Input-Tokens
+const REF_WH               = 0.30; // Epoch AI Referenz-Wh
+const REF_N_IN             = 100;  // Input-Tokens der Referenz
+const REF_N_OUT            = 500;  // Output-Tokens der Referenz
+
+const DEFAULT_PROFILE = 'altman'; // bekannteste oeffentliche Zahl (OpenAI CEO)
+
+// Service-Labels: unabhaengig vom Profil
+const SERVICE_LABELS = {
+  chatgpt:          'ChatGPT',
+  copilot:          'Microsoft Copilot',
+  gemini:           'Google Gemini',
+  claude:           'Claude',
+  perplexity:       'Perplexity',
+  google:           'Google Search',
+  'google-ai-mode': 'Google AI Mode',
+  deepseek:         'DeepSeek',
+  grok:             'Grok',
+  meta:             'Meta AI',
+  poe:              'Poe',
+  'github-copilot': 'GitHub Copilot'
 };
+
+// Energie-Profile (whBase / whPerToken pro Dienst)
+const PROFILES = {
+  // ── Jegham et al. arXiv:2505.09598 (Mai 2025) ─────────────────────────────
+  // ACM FAccT peer-reviewed, empirische GPU-Messung. ChatGPT @ 300 out = 0.435 Wh
+  // Source: https://arxiv.org/abs/2505.09598
+  jegham: {
+    chatgpt:          { whBase: 0.120, whPerToken: 0.00105 },
+    copilot:          { whBase: 0.120, whPerToken: 0.00105 },
+    gemini:           { whBase: 0.050, whPerToken: 0.00065 },
+    claude:           { whBase: 0.120, whPerToken: 0.00240 },
+    perplexity:       { whBase: 0.100, whPerToken: 0.00100 },
+    google:           { whBase: 0.300, whPerToken: 0       },
+    'google-ai-mode': { whBase: 0.120, whPerToken: 0.00065 },
+    deepseek:         { whBase: 0.080, whPerToken: 0.00080 },
+    grok:             { whBase: 0.120, whPerToken: 0.00100 },
+    meta:             { whBase: 0.080, whPerToken: 0.00070 },
+    poe:              { whBase: 0.120, whPerToken: 0.00100 },
+    'github-copilot': { whBase: 0.120, whPerToken: 0.00105 }
+  },
+  // ── Sam Altman / OpenAI "The Gentle Singularity" (Jun. 2025) ──────────────
+  // CEO-Blog, 0.34 Wh Durchschnitt. ChatGPT @ 300 out = 0.340 Wh. Skala: 0.782x
+  // Source: https://blog.samaltman.com/the-gentle-singularity
+  altman: {
+    chatgpt:          { whBase: 0.094, whPerToken: 0.00082 },
+    copilot:          { whBase: 0.094, whPerToken: 0.00082 },
+    gemini:           { whBase: 0.039, whPerToken: 0.00051 },
+    claude:           { whBase: 0.094, whPerToken: 0.00188 },
+    perplexity:       { whBase: 0.078, whPerToken: 0.00078 },
+    google:           { whBase: 0.235, whPerToken: 0       },
+    'google-ai-mode': { whBase: 0.094, whPerToken: 0.00051 },
+    deepseek:         { whBase: 0.063, whPerToken: 0.00063 },
+    grok:             { whBase: 0.094, whPerToken: 0.00078 },
+    meta:             { whBase: 0.063, whPerToken: 0.00055 },
+    poe:              { whBase: 0.094, whPerToken: 0.00078 },
+    'github-copilot': { whBase: 0.094, whPerToken: 0.00082 }
+  },
+  // ── Epoch AI "How much energy does ChatGPT use?" (Feb. 2025) ──────────────
+  // FLOP-basierte Ableitung, transparente Methodik. ChatGPT @ 100in+500out = 0.300 Wh. Skala: 0.465x
+  // Source: https://epochai.org/blog/how-much-energy-does-chatgpt-use
+  epoch: {
+    chatgpt:          { whBase: 0.056, whPerToken: 0.00049 },
+    copilot:          { whBase: 0.056, whPerToken: 0.00049 },
+    gemini:           { whBase: 0.023, whPerToken: 0.00030 },
+    claude:           { whBase: 0.056, whPerToken: 0.00112 },
+    perplexity:       { whBase: 0.047, whPerToken: 0.00047 },
+    google:           { whBase: 0.140, whPerToken: 0       },
+    'google-ai-mode': { whBase: 0.056, whPerToken: 0.00030 },
+    deepseek:         { whBase: 0.037, whPerToken: 0.00037 },
+    grok:             { whBase: 0.056, whPerToken: 0.00047 },
+    meta:             { whBase: 0.037, whPerToken: 0.00033 },
+    poe:              { whBase: 0.056, whPerToken: 0.00047 },
+    'github-copilot': { whBase: 0.056, whPerToken: 0.00049 }
+  }
+};
+
+// Aktive Dienste-Konfiguration (wird durch applyProfile() befuellt)
+let SERVICES = {};
+
+function applyProfile(key) {
+  const p = PROFILES[key] || PROFILES[DEFAULT_PROFILE];
+  SERVICES = {};
+  for (const svc in p) {
+    SERVICES[svc] = { whBase: p[svc].whBase, whPerToken: p[svc].whPerToken, label: SERVICE_LABELS[svc] };
+  }
+}
+
+async function loadActiveProfile() {
+  const data = await chrome.storage.local.get('settings');
+  const profile = (data.settings && data.settings.energyProfile) || DEFAULT_PROFILE;
+  applyProfile(profile);
+}
+
+// Profil sofort mit Standardwerten besetzen (synchron), async-Load ueberschreibt
+applyProfile(DEFAULT_PROFILE);
 
 const DAILY_LIMIT_WH = 100;
 const WEEKLY_LIMIT_WH = 500;
@@ -27,14 +121,15 @@ function getToday() {
 
 function estimateTokens(text) {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  return Math.ceil(text.length / CHARS_PER_TOKEN);
 }
 
 function calcWh(serviceKey, promptTokens, responseTokens) {
   const s = SERVICES[serviceKey];
   if (!s) return 0;
-  const totalTokens = (promptTokens || 0) + (responseTokens || 0);
-  return s.whBase + totalTokens * s.whPerToken;
+  // Only output tokens drive the per-token cost (autoregressive generation).
+  // Input token processing is already covered by whBase.
+  return s.whBase + (responseTokens || 0) * s.whPerToken;
 }
 
 // --- Storage Helpers ---
@@ -144,6 +239,11 @@ chrome.idle.onStateChanged.addListener((state) => {
 // --- Feature 7: Zeiterfassung pro Tab ---
 function identifyService(url) {
   if (!url) return null;
+  // Google AI Mode (udm=50) must be checked before regular Google search
+  if ((url.includes('www.google.com/search') || url.includes('www.google.de/search')) &&
+      url.includes('udm=50')) {
+    return 'google-ai-mode';
+  }
   const patterns = {
     chatgpt: ["chatgpt.com", "chat.com", "gpt.com", "chat.openai.com", "openai.com/chatgpt"],
     gemini: ["gemini.google.com", "bard.google.com", "aistudio.google.com"],
@@ -168,6 +268,9 @@ function identifyService(url) {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status !== "complete") return;
   const service = identifyService(tab.url);
+
+  // Persist active service so the popup status orb can read it
+  chrome.storage.local.set({ _activeService: service || null });
 
   // Alte Session beenden
   if (activeSessions.has(tabId)) {
@@ -343,6 +446,65 @@ async function cleanup() {
   }
 }
 
+// --- Icon: Canvas-generated, replaces static PNG on every load ---
+function generateIcon(size) {
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+  const s = size;
+  const r = Math.round(s * 0.2);
+
+  // Rounded dark background
+  ctx.fillStyle = '#0c1425';
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(s - r, 0);
+  ctx.arcTo(s, 0, s, r, r); ctx.lineTo(s, s - r);
+  ctx.arcTo(s, s, s - r, s, r); ctx.lineTo(r, s);
+  ctx.arcTo(0, s, 0, s - r, r); ctx.lineTo(0, r);
+  ctx.arcTo(0, 0, r, 0, r); ctx.closePath();
+  ctx.fill();
+
+  // Subtle border
+  ctx.strokeStyle = 'rgba(65,197,255,0.3)';
+  ctx.lineWidth = Math.max(1, s * 0.04);
+  ctx.stroke();
+
+  // Glow at larger sizes
+  if (s >= 48) { ctx.shadowColor = '#41c5ff'; ctx.shadowBlur = s * 0.1; }
+
+  // Lightning bolt shape
+  const p = s / 100;
+  ctx.fillStyle = '#41c5ff';
+  ctx.beginPath();
+  ctx.moveTo(p*60, p*6);
+  ctx.lineTo(p*34, p*48);
+  ctx.lineTo(p*50, p*48);
+  ctx.lineTo(p*37, p*94);
+  ctx.lineTo(p*66, p*52);
+  ctx.lineTo(p*50, p*52);
+  ctx.closePath();
+  ctx.fill();
+
+  return ctx.getImageData(0, 0, s, s);
+}
+
+async function setCanvasIcon() {
+  try {
+    const imageData = { '16': generateIcon(16), '48': generateIcon(48), '128': generateIcon(128) };
+    await chrome.action.setIcon({ imageData });
+  } catch (e) { /* fallback to static PNG */ }
+}
+
+// Re-apply profile when user changes setting
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings) {
+    const newSettings = changes.settings.newValue || {};
+    const profile = newSettings.energyProfile || DEFAULT_PROFILE;
+    applyProfile(profile);
+  }
+});
+
 // --- Init ---
 cleanup();
 updateBadge();
+setCanvasIcon();
+loadActiveProfile();

@@ -2,6 +2,18 @@
 
 var _ = chrome.i18n.getMessage;
 
+// Animate a numeric element from 0 to target with ease-out cubic
+function animateCountUp(el, target, duration) {
+  var start = performance.now();
+  (function step(now) {
+    var p = Math.min((now - start) / duration, 1);
+    var eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = (target * eased).toFixed(1);
+    if (p < 1) requestAnimationFrame(step);
+    else el.textContent = target.toFixed(1);
+  })(performance.now());
+}
+
 // Standard-Dienste
 var STANDARD_SERVICES = {
   chatgpt:    { label: "ChatGPT" },
@@ -9,7 +21,8 @@ var STANDARD_SERVICES = {
   gemini:     { label: "Gemini" },
   claude:     { label: "Claude" },
   perplexity: { label: "Perplexity" },
-  google:     { label: _("googleSearch") }
+  google:             { label: _("googleSearch") },
+  "google-ai-mode":   { label: _("googleAiSearch") }
 };
 
 // Optionale Dienste
@@ -23,11 +36,6 @@ var OPTIONAL_SERVICES = {
 
 // Aktive Dienste (wird beim Start geladen)
 var SERVICES = Object.assign({}, STANDARD_SERVICES);
-
-const TIPS = [
-  _("tip1"), _("tip2"), _("tip3"), _("tip4"),
-  _("tip5"), _("tip6"), _("tip7")
-];
 
 // --- Psychologische Vergleichsskala ---
 function getImpactText(wh) {
@@ -141,16 +149,6 @@ function drawWeekChart(values, weekDays) {
   }
 }
 
-function downloadFile(content, filename, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 // --- Alle Event-Listener sofort registrieren ---
 document.addEventListener("DOMContentLoaded", function() {
 
@@ -173,52 +171,31 @@ document.addEventListener("DOMContentLoaded", function() {
     renderPopup();
   });
 
+  // Status orb: check if current tab is an AI service
+  chrome.storage.local.get('_activeService', function(d) {
+    if (d._activeService) {
+      var orb = document.getElementById('statusOrb');
+      var lbl = document.getElementById('statusLabel');
+      if (orb) orb.classList.add('active');
+      if (lbl) lbl.textContent = d._activeService;
+    }
+  });
+
+  // Dashboard oeffnen (URL aus Settings, Fallback: settings.html)
+  document.getElementById("openDashboard").addEventListener("click", function() {
+    chrome.storage.local.get("settings", function(data) {
+      var url = (data.settings && data.settings.dashboardUrl) || "";
+      if (url) {
+        chrome.tabs.create({ url: url });
+      } else {
+        chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
+      }
+    });
+  });
+
   // Einstellungen oeffnen
   document.getElementById("openDevTest").addEventListener("click", function() {
     chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
-  });
-
-  // JSON Export
-  document.getElementById("exportJson").addEventListener("click", () => {
-    chrome.storage.local.get(null, (all) => {
-      const exportData = {};
-      for (const [key, value] of Object.entries(all)) {
-        if (key.startsWith("day_")) {
-          exportData[key.replace("day_", "")] = value;
-        }
-      }
-      downloadFile(
-        JSON.stringify(exportData, null, 2),
-        "ai-energy-monitor-" + getToday() + ".json",
-        "application/json"
-      );
-    });
-  });
-
-  // CSV Export
-  document.getElementById("exportCsv").addEventListener("click", () => {
-    chrome.storage.local.get(null, (all) => {
-      const rows = [[_("csvDate"), _("csvService"), _("csvRequests"), _("csvPromptTokens"), _("csvResponseTokens"), _("csvWh"), _("csvTime")]];
-      const sortedKeys = Object.keys(all).filter(k => k.startsWith("day_")).sort();
-      for (const key of sortedKeys) {
-        const date = key.replace("day_", "");
-        const dayData = all[key];
-        if (!dayData || !dayData.services) continue;
-        for (const [svc, data] of Object.entries(dayData.services)) {
-          rows.push([
-            date,
-            SERVICES[svc] ? SERVICES[svc].label : svc,
-            data.count,
-            data.promptTokens || 0,
-            data.responseTokens || 0,
-            (data.wh || 0).toFixed(2),
-            Math.round((data.timeSpentMs || 0) / 60000)
-          ]);
-        }
-      }
-      const csv = rows.map(r => r.join(";")).join("\n");
-      downloadFile(csv, "ai-energy-monitor-" + getToday() + ".csv", "text/csv");
-    });
   });
 
   function renderPopup() {
@@ -234,8 +211,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
     var todayData = allData["day_" + today] || { services: {}, totalWh: 0, requests: [] };
     var todayWh = todayData.totalWh || 0;
+    var whEl = document.getElementById("todayWh");
 
-    document.getElementById("todayWh").textContent = todayWh.toFixed(1);
+    // Animate count-up only when today's value changed since last popup open
+    chrome.storage.local.get('_lastSeenWh', function(seen) {
+      var rec = seen._lastSeenWh || {};
+      var lastSeen = (rec.date === today) ? (rec.wh || 0) : 0;
+      if (todayWh > lastSeen + 0.05) {
+        animateCountUp(whEl, todayWh, 900);
+        chrome.storage.local.set({ _lastSeenWh: { date: today, wh: todayWh } });
+      } else {
+        whEl.textContent = todayWh.toFixed(1);
+      }
+    });
     document.getElementById("todayCompare").textContent = getImpactText(todayWh);
 
     var dailyWh = days.map(function(d) {
@@ -257,6 +245,8 @@ document.addEventListener("DOMContentLoaded", function() {
     for (var key in SERVICES) {
       var info = SERVICES[key];
       var svc = (todayData.services && todayData.services[key]) || { count: 0, wh: 0, timeSpentMs: 0 };
+      // Only render services that have been used today
+      if (!(svc.wh > 0 || svc.count > 0)) continue;
       var tr = document.createElement("tr");
       var whVal = (svc.wh || 0).toFixed(1);
       tr.innerHTML =
@@ -273,12 +263,17 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById("lastPromptSection").style.display = "block";
         document.getElementById("lastPromptText").textContent = last.promptPreview || "-";
         var svcLabel = SERVICES[last.service] ? SERVICES[last.service].label : last.service;
-        document.getElementById("lastPromptMeta").textContent =
-          svcLabel + " | " + (last.promptTokens || 0) + " + " + (last.responseTokens || 0) + " Tokens | " + (last.wh || 0) + " Wh";
+        var metaEl = document.getElementById("lastPromptMeta");
+        var pTok = last.promptTokens || 0;
+        var rTok = last.responseTokens || 0;
+        var est = last.realTokens ? "" : "~"; // ~ = estimated, no prefix = real
+        metaEl.innerHTML =
+          '<span class="token-badge-in">&#8593; IN ' + est + pTok + '</span>' +
+          '<span class="token-badge-out">&#8595; OUT ' + est + rTok + '</span>' +
+          '<span class="token-wh">' + (last.wh || 0) + ' Wh</span>';
       }
     }
 
-    document.getElementById("tipText").textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
   });
   } // end renderPopup
 });
