@@ -137,6 +137,30 @@
   </div>
 
   <div class="section">
+    <div class="section-title" data-i18n="googleBaselineTitle">Google Search Baseline</div>
+    <div class="section-desc" data-i18n="googleBaselineDesc">Choose which data source to use for the energy cost of a regular Google search (without AI).</div>
+    <ul class="profile-list" id="googleBaselineList">
+      <li class="profile-item">
+        <input type="radio" name="googleBaseline" value="classic" id="baselineClassic">
+        <label for="baselineClassic" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Google (2009)<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+          <span class="profile-meta" data-i18n="googleBaselineClassicDesc">0.3 Wh per search · official Google figure, still widely cited (conservative)</span>
+          <a class="profile-source" href="https://publicpolicy.googleblog.com/2009/01/powering-google-search.html" target="_blank">&#8599; googleblog.com · Urs Hölzle, Jan. 2009</a>
+        </label>
+      </li>
+      <li class="profile-item">
+        <input type="radio" name="googleBaseline" value="revised" id="baselineRevised">
+        <label for="baselineRevised" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Vanderbauwhede (2025)</span>
+          <span class="profile-meta" data-i18n="googleBaselineRevisedDesc">0.04 Wh per search · recalculated for modern hardware, not officially confirmed by Google</span>
+          <a class="profile-source" href="https://arxiv.org/abs/2407.16894" target="_blank">&#8599; arxiv.org/abs/2407.16894</a>
+        </label>
+      </li>
+    </ul>
+    <div class="saved-msg" id="googleBaselineSavedMsg" data-i18n="saved">Saved!</div>
+  </div>
+
+  <div class="section">
     <div class="section-title" data-i18n="testcenterAndData">Test Center & Data</div>
     <div class="section-desc" data-i18n="testcenterAndDataDesc">Test center for checking the extension and managing stored data.</div>
     <button class="btn" id="btnDevTest" data-i18n="openTestcenter">Open Test Center</button>

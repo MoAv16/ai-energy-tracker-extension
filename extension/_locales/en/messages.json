@@ -75,6 +75,11 @@
   "profileAltmanDesc": { "message": "0.34 Wh average \u00b7 publicly acknowledged value (OpenAI CEO, Jun. 2025)" },
   "profileJeghamDesc": { "message": "0.44 Wh average \u00b7 conservative, peer-reviewed GPU measurement (arXiv:2505.09598)" },
   "profileEpochDesc": { "message": "0.30 Wh average \u00b7 FLOP-based derivation, most conservative estimate (Feb. 2025)" },
+  "googleBaselineTitle": { "message": "Google Search Baseline" },
+  "googleBaselineDesc": { "message": "Choose which data source to use for the energy cost of a regular Google search (without AI)." },
+  "googleBaselineClassicDesc": { "message": "0.3 Wh per search \u00b7 official Google figure, still widely cited (conservative)" },
+  "googleBaselineRevisedDesc": { "message": "0.04 Wh per search \u00b7 recalculated for modern hardware, not officially confirmed by Google" },
+
   "testcenterAndData": { "message": "Test Center & Data" },
   "testcenterAndDataDesc": { "message": "Test center for checking the extension and managing stored data." },
   "openTestcenter": { "message": "Open Test Center" },

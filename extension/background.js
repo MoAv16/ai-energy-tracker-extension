@@ -20,6 +20,8 @@ const REF_N_IN             = 100;  // Input-Tokens der Referenz
 const REF_N_OUT            = 500;  // Output-Tokens der Referenz
 
 const DEFAULT_PROFILE = 'altman'; // bekannteste oeffentliche Zahl (OpenAI CEO)
+const DEFAULT_GOOGLE_BASELINE = 'classic'; // conservative: Google 2009 official value
+const GOOGLE_BASELINE_REVISED_WH = 0.040;  // Vanderbauwhede arXiv:2407.16894 (Jan. 2025)
 
 // Service-Labels: unabhaengig vom Profil
 const SERVICE_LABELS = {
@@ -95,22 +97,27 @@ const PROFILES = {
 // Aktive Dienste-Konfiguration (wird durch applyProfile() befuellt)
 let SERVICES = {};
 
-function applyProfile(key) {
+function applyProfile(key, googleBaseline) {
   const p = PROFILES[key] || PROFILES[DEFAULT_PROFILE];
   SERVICES = {};
   for (const svc in p) {
     SERVICES[svc] = { whBase: p[svc].whBase, whPerToken: p[svc].whPerToken, label: SERVICE_LABELS[svc] };
   }
+  // Google search baseline is independent of LLM profiles – override if revised is selected
+  if ((googleBaseline || DEFAULT_GOOGLE_BASELINE) === 'revised' && SERVICES['google']) {
+    SERVICES['google'].whBase = GOOGLE_BASELINE_REVISED_WH;
+  }
 }
 
 async function loadActiveProfile() {
   const data = await chrome.storage.local.get('settings');
-  const profile = (data.settings && data.settings.energyProfile) || DEFAULT_PROFILE;
-  applyProfile(profile);
+  const profile  = (data.settings && data.settings.energyProfile)      || DEFAULT_PROFILE;
+  const baseline = (data.settings && data.settings.googleSearchBaseline) || DEFAULT_GOOGLE_BASELINE;
+  applyProfile(profile, baseline);
 }
 
-// Profil sofort mit Standardwerten besetzen (synchron), async-Load ueberschreibt
-applyProfile(DEFAULT_PROFILE);
+// Apply defaults synchronously; async loadActiveProfile() will override
+applyProfile(DEFAULT_PROFILE, DEFAULT_GOOGLE_BASELINE);
 
 const DAILY_LIMIT_WH = 100;
 const WEEKLY_LIMIT_WH = 500;
@@ -498,8 +505,9 @@ async function setCanvasIcon() {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
     const newSettings = changes.settings.newValue || {};
-    const profile = newSettings.energyProfile || DEFAULT_PROFILE;
-    applyProfile(profile);
+    const profile  = newSettings.energyProfile       || DEFAULT_PROFILE;
+    const baseline = newSettings.googleSearchBaseline || DEFAULT_GOOGLE_BASELINE;
+    applyProfile(profile, baseline);
   }
 });
 
