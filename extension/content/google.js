@@ -54,26 +54,28 @@
   function showDetectionToast() {
     var toast = document.createElement('div');
     toast.style.cssText =
-      'position:fixed;top:58px;right:20px;z-index:2147483647;' +
-      'background:rgba(6,13,26,0.93);border:1px solid rgba(65,197,255,0.2);' +
-      'border-radius:8px;padding:7px 13px;display:flex;align-items:center;gap:8px;' +
+      'position:fixed;top:60px;right:12px;z-index:2147483647;' +
+      'background:rgba(6,13,26,0.96);border:1px solid rgba(65,197,255,0.25);' +
+      'border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;' +
       'font:600 12px "Segoe UI",Arial,sans-serif;color:#ddeeff;pointer-events:none;' +
-      'box-shadow:0 8px 28px rgba(0,0,0,0.45);';
+      'box-shadow:0 8px 28px rgba(0,0,0,0.55);';
     toast.innerHTML =
       '<span style="color:#41c5ff;font-size:13px;">&#9889;</span>' +
       '<span>Google AI Mode detected</span>';
     document.body.appendChild(toast);
+    // Slide down from extension icon area (top-right)
     toast.animate(
-      [{ transform: 'translateX(112%)', opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }],
-      { duration: 360, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' }
+      [{ transform: 'translateY(-12px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }],
+      { duration: 300, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' }
     );
+    // Hold longer, then fade out (ausblassen)
     setTimeout(function() {
       var out = toast.animate(
-        [{ transform: 'translateX(0)', opacity: 1 }, { transform: 'translateX(112%)', opacity: 0 }],
-        { duration: 260, easing: 'ease', fill: 'both' }
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: 700, easing: 'ease', fill: 'both' }
       );
       out.onfinish = function() { if (toast.parentNode) toast.remove(); };
-    }, 1800);
+    }, 3500);
   }
 
   // ── HUD (Shadow DOM, appears once AI response is collected) ───────────────

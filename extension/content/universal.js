@@ -104,7 +104,212 @@
         promptTokens: e.data.promptTokens || 0,
         responseTokens: e.data.responseTokens || 0
       });
+      // Update HUD with verified real token counts
+      hudUpdateTokens(e.data.promptTokens || 0, e.data.responseTokens || 0, true);
     });
+
+    // ─── Token HUD ─────────────────────────────────────────────────
+    var HUD_LABELS = {
+      chatgpt: 'ChatGPT', gemini: 'Gemini', claude: 'Claude',
+      copilot: 'Copilot', perplexity: 'Perplexity', deepseek: 'DeepSeek',
+      grok: 'Grok', meta: 'Meta AI', poe: 'Poe', 'github-copilot': 'GitHub Copilot'
+    };
+
+    // HUD energy profiles (mirrors PROFILES in background.js)
+    var HUD_PROFILES = {
+      jegham: {chatgpt:{b:0.120,r:0.00105},copilot:{b:0.120,r:0.00105},gemini:{b:0.050,r:0.00065},
+               claude:{b:0.120,r:0.00240},perplexity:{b:0.100,r:0.00100},google:{b:0.300,r:0},
+               deepseek:{b:0.080,r:0.00080},grok:{b:0.120,r:0.00100},meta:{b:0.080,r:0.00070},
+               poe:{b:0.120,r:0.00100},'github-copilot':{b:0.120,r:0.00105}},
+      altman: {chatgpt:{b:0.094,r:0.00082},copilot:{b:0.094,r:0.00082},gemini:{b:0.039,r:0.00051},
+               claude:{b:0.094,r:0.00188},perplexity:{b:0.078,r:0.00078},google:{b:0.235,r:0},
+               deepseek:{b:0.063,r:0.00063},grok:{b:0.094,r:0.00078},meta:{b:0.063,r:0.00055},
+               poe:{b:0.094,r:0.00078},'github-copilot':{b:0.094,r:0.00082}},
+      epoch:  {chatgpt:{b:0.056,r:0.00049},copilot:{b:0.056,r:0.00049},gemini:{b:0.023,r:0.00030},
+               claude:{b:0.056,r:0.00112},perplexity:{b:0.047,r:0.00047},google:{b:0.140,r:0},
+               deepseek:{b:0.037,r:0.00037},grok:{b:0.056,r:0.00047},meta:{b:0.037,r:0.00033},
+               poe:{b:0.056,r:0.00047},'github-copilot':{b:0.056,r:0.00049}}
+    };
+    var activeHudProfile = 'altman'; // default; overwritten by storage read below
+    chrome.storage.local.get('settings', function(d) {
+      if (d.settings && d.settings.energyProfile) activeHudProfile = d.settings.energyProfile;
+    });
+
+    var hudHost = null;
+    var hudRoot = null;
+    var hudTimer = null;
+
+    function hudQ(id) { return hudRoot ? hudRoot.querySelector('#' + id) : null; }
+
+    function hudBuild() {
+      if (hudHost) return;
+      hudHost = document.createElement('div');
+      hudHost.id = '__aem-hud__';
+      hudHost.style.cssText = 'position:fixed;top:70px;right:20px;z-index:2147483647;display:none;pointer-events:none;';
+      document.body.appendChild(hudHost);
+      hudRoot = hudHost.attachShadow({ mode: 'open' });
+
+      var svcName = HUD_LABELS[service] || service;
+
+      // All styles scoped inside Shadow DOM - zero page interference
+      var styleEl = document.createElement('style');
+      styleEl.textContent = [
+        '@keyframes si{from{transform:translateX(112%);opacity:0}to{transform:translateX(0);opacity:1}}',
+        '@keyframes so{from{transform:translateX(0);opacity:1}to{transform:translateX(112%);opacity:0}}',
+        '@keyframes bl{0%,100%{opacity:1}50%{opacity:0.25}}',
+        '.box{',
+          'width:215px;',
+          'background:rgba(6,13,26,0.96);',
+          'border:1px solid rgba(65,197,255,0.18);',
+          'border-radius:10px;',
+          'padding:11px 13px 10px;',
+          'box-shadow:0 16px 48px rgba(0,0,0,0.55),0 0 0 0.5px rgba(65,197,255,0.06) inset;',
+          'pointer-events:auto;',
+          'animation:si .38s cubic-bezier(.34,1.56,.64,1) both;',
+          'font-family:"Segoe UI",Arial,sans-serif;',
+        '}',
+        '.box.out{animation:so .28s ease both;}',
+        '.hdr{display:flex;align-items:center;justify-content:space-between;',
+          'margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(65,197,255,0.08);}',
+        '.sn{font:700 12px "Segoe UI",Arial,sans-serif;color:#ddeeff;letter-spacing:.3px;}',
+        '.dot{width:6px;height:6px;border-radius:50%;background:#41c5ff;',
+          'box-shadow:0 0 6px rgba(65,197,255,0.7);animation:bl 2s ease-in-out infinite;flex-shrink:0;}',
+        '.xi{background:none;border:none;color:#1e3050;cursor:pointer;font-size:13px;',
+          'line-height:1;padding:0;pointer-events:auto;transition:color .2s;}',
+        '.xi:hover{color:#41c5ff;}',
+        '.row{display:flex;align-items:center;padding:4px 0;gap:7px;}',
+        '.dir{font:700 9px "Segoe UI",Arial,sans-serif;letter-spacing:.9px;width:40px;flex-shrink:0;}',
+        '.di{color:#41c5ff;}.do{color:#f59e0b;}',
+        '.cnt{font:700 20px "Courier New",Consolas,monospace;flex:1;line-height:1;min-width:0;}',
+        '.ci{color:#41c5ff;}.co{color:#f59e0b;}',
+        '.cnt.spin{color:#1e3a58;animation:bl 0.9s ease-in-out infinite;}',
+        '.un{font:600 8px "Segoe UI",Arial,sans-serif;color:#1a3050;',
+          'text-transform:uppercase;letter-spacing:.5px;}',
+        '.ft{margin-top:7px;padding-top:6px;border-top:1px solid rgba(65,197,255,0.06);',
+          'display:flex;align-items:center;gap:5px;}',
+        '.wv{font:600 10px "Courier New",Consolas,monospace;color:#2a4a6a;}',
+        '.wl{font:600 8px "Segoe UI",Arial,sans-serif;color:#1a3050;',
+          'text-transform:uppercase;letter-spacing:.5px;}',
+        '.rb{margin-left:auto;font:700 7px "Segoe UI",Arial,sans-serif;padding:2px 5px;',
+          'border-radius:3px;background:rgba(65,197,255,0.1);color:#41c5ff;',
+          'letter-spacing:.6px;opacity:0;transition:opacity .3s;}',
+        '.rb.on{opacity:1;}'
+      ].join('');
+
+      var box = document.createElement('div');
+      box.className = 'box';
+      box.innerHTML =
+        '<div class="hdr">' +
+          '<div style="display:flex;align-items:center;gap:7px;">' +
+            '<div class="dot"></div>' +
+            '<span class="sn">' + svcName + '</span>' +
+          '</div>' +
+          '<button class="xi" id="xi">&#x2715;</button>' +
+        '</div>' +
+        '<div class="row"><span class="dir di">IN &#8593;</span>' +
+          '<span class="cnt ci" id="hi">0</span><span class="un">tokens</span></div>' +
+        '<div class="row"><span class="dir do">OUT &#8595;</span>' +
+          '<span class="cnt co spin" id="ho">&#8226;&#8226;&#8226;</span><span class="un">tokens</span></div>' +
+        '<div class="ft">' +
+          '<span class="wl">energy</span>' +
+          '<span class="wv" id="hw">&mdash;</span>' +
+          '<span class="rb" id="hr">REAL</span>' +
+        '</div>';
+
+      hudRoot.appendChild(styleEl);
+      hudRoot.appendChild(box);
+      hudRoot.querySelector('#xi').addEventListener('click', hudHide);
+    }
+
+    function hudCountUp(el, target, ms) {
+      var t0 = Date.now();
+      var from = parseInt(el.textContent) || 0;
+      (function step() {
+        var p = Math.min((Date.now() - t0) / ms, 1);
+        var e = 1 - Math.pow(1 - p, 3);
+        el.textContent = Math.round(from + (target - from) * e);
+        if (p < 1) requestAnimationFrame(step);
+      })();
+    }
+
+    function hudShow(inTokens) {
+      hudBuild();
+      clearTimeout(hudTimer);
+      var box = hudRoot.querySelector('.box');
+      var elIn = hudQ('hi'), elOut = hudQ('ho'), elWh = hudQ('hw'), elR = hudQ('hr');
+      if (box) box.classList.remove('out');
+      if (elIn) elIn.textContent = inTokens;
+      if (elOut) { elOut.textContent = '\u2022\u2022\u2022'; elOut.classList.add('spin'); }
+      if (elWh) elWh.innerHTML = '&mdash;';
+      if (elR) elR.classList.remove('on');
+      hudHost.style.display = 'block';
+      hudSchedule();
+    }
+
+    function hudUpdateTokens(inTok, outTok, isReal) {
+      if (!hudHost || hudHost.style.display === 'none') return;
+      clearTimeout(hudTimer);
+      var elIn = hudQ('hi'), elOut = hudQ('ho'), elWh = hudQ('hw'), elR = hudQ('hr');
+      if (elIn && inTok > 0) elIn.textContent = inTok;
+      if (elOut) { elOut.classList.remove('spin'); hudCountUp(elOut, outTok, 850); }
+      // Wh preview mirrors calcWh in background.js: base + outputTokens * rate
+      var prof = HUD_PROFILES[activeHudProfile] || HUD_PROFILES.altman;
+      var svcCfg = prof[service] || prof.chatgpt;
+      var wh = (svcCfg.b + outTok * svcCfg.r).toFixed(2);
+      if (elWh) elWh.textContent = wh + ' Wh';
+      if (isReal && elR) elR.classList.add('on');
+      hudSchedule();
+    }
+
+    function hudHide() {
+      if (!hudHost) return;
+      var box = hudRoot ? hudRoot.querySelector('.box') : null;
+      if (box) {
+        box.classList.add('out');
+        setTimeout(function() { if (hudHost) hudHost.style.display = 'none'; }, 300);
+      } else {
+        hudHost.style.display = 'none';
+      }
+    }
+
+    function hudSchedule() {
+      clearTimeout(hudTimer);
+      hudTimer = setTimeout(hudHide, 8000);
+    }
+
+    // Brief detection toast when AI site is first detected
+    (function showDetectionToast() {
+      var svcName = HUD_LABELS[service] || service;
+      var toast = document.createElement('div');
+      toast.style.cssText = [
+        'position:fixed;top:60px;right:12px;z-index:2147483647;',
+        'background:rgba(6,13,26,0.96);',
+        'border:1px solid rgba(65,197,255,0.25);',
+        'border-radius:8px;padding:8px 14px;',
+        'display:flex;align-items:center;gap:8px;',
+        'font:600 12px "Segoe UI",Arial,sans-serif;',
+        'color:#ddeeff;pointer-events:none;',
+        'box-shadow:0 8px 28px rgba(0,0,0,0.55);'
+      ].join('');
+      toast.innerHTML =
+        '<span style="color:#41c5ff;font-size:13px;">&#9889;</span>' +
+        '<span>' + svcName + ' detected</span>';
+      document.body.appendChild(toast);
+      // Slide down from extension icon area (top-right)
+      toast.animate(
+        [{ transform: 'translateY(-12px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }],
+        { duration: 300, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' }
+      );
+      // Hold longer, then fade out (ausblassen)
+      setTimeout(function() {
+        var out = toast.animate(
+          [{ opacity: 1 }, { opacity: 0 }],
+          { duration: 700, easing: 'ease', fill: 'both' }
+        );
+        out.onfinish = function() { toast.remove(); };
+      }, 3500);
+    })();
+    // ─── End HUD ───────────────────────────────────────────────────
 
     // Finde das Eingabefeld
     function findInput() {
@@ -142,6 +347,9 @@
       if (text.length < 2) return;
       lastText = text;
       lastTime = now;
+
+      // Show HUD with estimated IN token count immediately
+      hudShow(Math.ceil(text.length / 4));
 
       chrome.runtime.sendMessage({
         type: "prompt-submitted",
@@ -225,6 +433,8 @@
                 service: service,
                 responseText: collected
               });
+              // Update HUD with DOM-based estimate (fallback for non-intercepted services)
+              hudUpdateTokens(0, Math.ceil(collected.length / 4), false);
               obs.disconnect();
             }, 2500);
             break;
