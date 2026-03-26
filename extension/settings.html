@@ -25,6 +25,16 @@
     .toggle input:checked + .slider { background: #2ac878; }
     .toggle input:checked + .slider:before { transform: translateX(20px); }
     .saved-msg { display: none; font-size: 12px; color: #2ac878; font-weight: 700; margin-top: 8px; }
+    .profile-list { list-style: none; }
+    .profile-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef0f4; cursor: pointer; }
+    .profile-item:last-child { border-bottom: none; }
+    .profile-item input[type="radio"] { margin-top: 3px; accent-color: #003770; flex-shrink: 0; cursor: pointer; }
+    .profile-info { display: flex; flex-direction: column; }
+    .profile-name { font-size: 14px; font-weight: 600; }
+    .profile-meta { font-size: 11px; color: #6b7a8d; margin-top: 2px; }
+    .profile-badge { display: inline-block; font-size: 10px; color: #fff; background: #003770; padding: 1px 5px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+    .profile-source { display: inline-block; margin-top: 3px; font-size: 10px; color: #41c5ff; text-decoration: none; }
+    .profile-source:hover { text-decoration: underline; }
     .btn { padding: 8px 16px; background: #003770; color: #fff; border: none; border-radius: 4px; font: 600 13px Arial; cursor: pointer; margin-top: 12px; }
     .btn:hover { background: #002855; }
     .btn.grey { background: #6b7a8d; }
@@ -92,6 +102,38 @@
       </li>
     </ul>
     <div class="saved-msg" id="savedMsg" data-i18n="saved">Saved!</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title" data-i18n="energyProfileTitle">Energy Profile</div>
+    <div class="section-desc" data-i18n="energyProfileDesc">Select which scientific study should be used as the energy calculation basis.</div>
+    <ul class="profile-list" id="profileList">
+      <li class="profile-item">
+        <input type="radio" name="energyProfile" value="altman" id="profileAltman">
+        <label for="profileAltman" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Sam Altman / OpenAI<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+          <span class="profile-meta" data-i18n="profileAltmanDesc">0.34 Wh average · publicly acknowledged value (OpenAI CEO, Jun. 2025)</span>
+          <a class="profile-source" href="https://blog.samaltman.com/the-gentle-singularity" target="_blank">&#8599; blog.samaltman.com/the-gentle-singularity</a>
+        </label>
+      </li>
+      <li class="profile-item">
+        <input type="radio" name="energyProfile" value="jegham" id="profileJegham">
+        <label for="profileJegham" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Jegham et al.</span>
+          <span class="profile-meta" data-i18n="profileJeghamDesc">0.44 Wh average · conservative, peer-reviewed GPU measurement (arXiv:2505.09598)</span>
+          <a class="profile-source" href="https://arxiv.org/abs/2505.09598" target="_blank">&#8599; arxiv.org/abs/2505.09598</a>
+        </label>
+      </li>
+      <li class="profile-item">
+        <input type="radio" name="energyProfile" value="epoch" id="profileEpoch">
+        <label for="profileEpoch" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Epoch AI</span>
+          <span class="profile-meta" data-i18n="profileEpochDesc">0.30 Wh average · FLOP-based derivation, most conservative estimate (Feb. 2025)</span>
+          <a class="profile-source" href="https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use" target="_blank">&#8599; epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use</a>
+        </label>
+      </li>
+    </ul>
+    <div class="saved-msg" id="profileSavedMsg" data-i18n="saved">Saved!</div>
   </div>
 
   <div class="section">

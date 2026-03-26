@@ -75,7 +75,7 @@ const PROFILES = {
   },
   // ── Epoch AI "How much energy does ChatGPT use?" (Feb. 2025) ──────────────
   // FLOP-basierte Ableitung, transparente Methodik. ChatGPT @ 100in+500out = 0.300 Wh. Skala: 0.465x
-  // Source: https://epochai.org/blog/how-much-energy-does-chatgpt-use
+  // Source: https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use
   epoch: {
     chatgpt:          { whBase: 0.056, whPerToken: 0.00049 },
     copilot:          { whBase: 0.056, whPerToken: 0.00049 },
