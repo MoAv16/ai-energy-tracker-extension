@@ -6,50 +6,66 @@
 </head>
 <body>
   <nav class="nav">
-    <span class="nav-brand" data-i18n="navBrand">AI Energy Monitor</span>
+    <div class="nav-left">
+      <div class="status-orb" id="statusOrb"></div>
+      <span class="nav-brand" data-i18n="navBrand">AI Energy Monitor</span>
+    </div>
+    <span class="status-label" id="statusLabel"></span>
   </nav>
 
-  <div class="container">
-    <!-- Tagesverbrauch -->
+  <!-- Onboarding (wird ausgeblendet sobald Ordner verbunden) -->
+  <div id="onboarding" class="onboarding hidden">
+    <div class="ob-icon">📂</div>
+    <div class="ob-title" data-i18n="obTitle">Speicherort einrichten</div>
+    <div class="ob-desc" data-i18n="obDesc">Wähle deinen Dokumente-Ordner – der Ordner 'KI Energie-Monitor' wird automatisch darin angelegt.</div>
+    <button id="btnChooseFolder" class="btn btn-dashboard" data-i18n="obChooseFolder">Dokumente öffnen</button>
+    <div class="ob-note" data-i18n="obNote">Der Ordner 'KI Energie-Monitor' wird automatisch erstellt</div>
+    <div class="ob-error hidden" id="obError" data-i18n="obError">Kein Ordner ausgewaehlt. Bitte versuche es erneut.</div>
+  </div>
+
+  <div id="mainContent" class="container hidden">
+
+    <!-- Daily total -->
     <div class="stat-main">
-      <span class="stat-num" id="todayWh">0</span>
-      <span class="stat-unit" data-i18n="whToday">Wh today</span>
+      <div class="stat-num-wrap">
+        <span class="stat-num" id="todayWh">0.0</span>
+        <span class="stat-unit">Wh</span>
+      </div>
+      <span class="stat-sub" data-i18n="whToday">today</span>
     </div>
-    <div class="stat-compare" id="todayCompare"></div>
 
-    <!-- Wochenansicht Mo-So -->
+    <!-- Week chart -->
     <div class="week-section">
-      <div class="week-label" data-i18n="currentWeek">Current week</div>
+      <div class="week-header">
+        <span class="section-label" data-i18n="currentWeek">Current week</span>
+        <span class="week-total"><strong id="weekWh">0</strong> Wh</span>
+      </div>
       <div class="week-days" id="weekDays"></div>
-      <canvas id="weekChart" height="80" style="width:100%;display:block;"></canvas>
-      <div class="week-total"><span data-i18n="week">Week:</span> <strong id="weekWh">0</strong> Wh</div>
+      <canvas id="weekChart" height="60" style="width:100%;display:block;margin-top:4px;"></canvas>
     </div>
 
-    <!-- Aufschluesselung -->
+    <!-- Service breakdown -->
     <table class="breakdown" id="serviceList"></table>
 
-    <!-- Letzter Prompt -->
-    <div class="last-prompt" id="lastPromptSection" style="display:none">
-      <div class="last-prompt-label" data-i18n="lastPrompt">Last prompt</div>
+    <!-- Last request with IN/OUT token badges -->
+    <div class="last-prompt" id="lastPromptSection">
+      <div class="section-label" data-i18n="lastPrompt">Last request</div>
       <div class="last-prompt-text" id="lastPromptText"></div>
-      <div class="last-prompt-meta" id="lastPromptMeta"></div>
+      <div class="token-badges" id="lastPromptMeta"></div>
     </div>
 
-    <!-- Tipp -->
-    <div class="tip" id="tipSection">
-      <span class="tip-label" data-i18n="tipLabel">Tip:</span>
-      <span id="tipText"></span>
-    </div>
+    <!-- Dashboard -->
+    <button id="openDashboard" class="btn btn-dashboard" data-i18n="dashboardBtn">Zum Dashboard</button>
 
-    <!-- Buttons -->
+    <!-- Settings -->
     <div class="btn-row">
-      <button id="exportJson" class="btn">JSON</button>
-      <button id="exportCsv" class="btn">CSV</button>
-      <button id="openDevTest" class="btn dev" data-i18n="settingsBtn">Settings</button>
+      <button id="openDevTest" class="btn btn-settings" data-i18n="settingsBtn">Settings</button>
     </div>
+
   </div>
 
   <script src="i18n.js"></script>
   <script src="popup.js"></script>
+
 </body>
 </html>

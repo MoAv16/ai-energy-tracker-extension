@@ -14,11 +14,12 @@
     if (isAiMode) {
       runAiMode(query);
     } else {
+      if (!chrome.runtime || !chrome.runtime.id) return; // extension context invalidated
       chrome.runtime.sendMessage({
         type: 'prompt-submitted',
         service: 'google',
         promptText: query
-      });
+      }, function() { void chrome.runtime.lastError; });
     }
   });
 
@@ -41,13 +42,73 @@
   // ── AI Mode: main flow ────────────────────────────────────────────────────
   function runAiMode(query) {
     showDetectionToast();
+    if (!chrome.runtime || !chrome.runtime.id) return; // extension context invalidated
     chrome.runtime.sendMessage({
       type: 'prompt-submitted',
       service: 'google-ai-mode',
       promptText: query,
       responseText: ''
-    });
+    }, function() { void chrome.runtime.lastError; });
     waitForAIResponse();
+    watchForFollowUps();
+  }
+
+  // ── Follow-up input detection (SPA: no page reload on follow-up queries) ──
+  function watchForFollowUps() {
+    var lastText = '';
+    var lastTime = 0;
+    var DEBOUNCE = 3000;
+
+    // Read text from a given input element (textarea, input, or contenteditable)
+    function readInputText(el) {
+      if (!el) return '';
+      if (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text')) {
+        return (el.value || '').trim();
+      }
+      if (el.getAttribute('contenteditable') === 'true' || el.getAttribute('role') === 'textbox') {
+        return (el.innerText || el.textContent || '').trim();
+      }
+      return '';
+    }
+
+    function onFollowUp(text) {
+      var now = Date.now();
+      if (text === lastText && (now - lastTime) < DEBOUNCE) return;
+      if (text.length < 2) return;
+      lastText = text;
+      lastTime = now;
+      if (!chrome.runtime || !chrome.runtime.id) return;
+      chrome.runtime.sendMessage({
+        type: 'prompt-submitted',
+        service: 'google-ai-mode',
+        promptText: text,
+        responseText: ''
+      }, function() { void chrome.runtime.lastError; });
+      // Slight delay so DOM clears old response before we start observing
+      setTimeout(function() { waitForAIResponse(true); }, 400);
+    }
+
+    // On Enter key: read activeElement directly — the user is typing there
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      var text = readInputText(document.activeElement);
+      if (text) setTimeout(function() { onFollowUp(text); }, 100);
+    }, true);
+
+    // On send button click: look in the button's form first, then activeElement
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      var aria = (btn.getAttribute('aria-label') || '').toLowerCase();
+      if (aria.indexOf('send') === -1 && aria.indexOf('submit') === -1 &&
+          (btn.textContent.trim() || !btn.querySelector('svg'))) return;
+      var form = btn.closest('form');
+      var inputEl = form
+        ? (form.querySelector('textarea') || form.querySelector('[contenteditable="true"]') || form.querySelector('[role="textbox"]'))
+        : readInputText(document.activeElement) ? document.activeElement : null;
+      var text = readInputText(inputEl);
+      if (text) setTimeout(function() { onFollowUp(text); }, 100);
+    }, true);
   }
 
   // ── Detection Toast (same pattern as universal.js) ────────────────────────
@@ -179,30 +240,73 @@
     'div[jsname="N760b"]'
   ];
 
-  function waitForAIResponse() {
+  function reportResponse(text) {
+    if (!chrome.runtime || !chrome.runtime.id) return;
+    var tokens = Math.ceil(text.length / 4);
+    chrome.runtime.sendMessage({
+      type: 'response-received',
+      service: 'google-ai-mode',
+      responseText: text
+    }, function() { void chrome.runtime.lastError; });
+    hudShow(tokens);
+  }
+
+  function waitForAIResponse(isFollowUp) {
+    // Snapshot current response text so follow-up calls don't re-report the old answer
+    var snapshotText = '';
+    for (var s = 0; s < AI_SELECTORS.length; s++) {
+      var snapEl = document.querySelector(AI_SELECTORS[s]);
+      if (snapEl) { snapshotText = (snapEl.innerText || '').trim(); break; }
+    }
+
+    // Response already in DOM (initial page load only — skip for follow-ups,
+    // because the previous answer is still visible and would be re-reported)
+    if (!isFollowUp && snapshotText.length > 50) {
+      setTimeout(function() { reportResponse(snapshotText); }, 500);
+      return;
+    }
+
     var collected = '';
     var debounce  = null;
 
-    var obs = new MutationObserver(function() {
+    var obs = new MutationObserver(function(mutations) {
+      var text = '';
+
+      // 1. Try specific known selectors first
       for (var i = 0; i < AI_SELECTORS.length; i++) {
         var el = document.querySelector(AI_SELECTORS[i]);
         if (!el) continue;
-        var text = (el.innerText || '').trim();
-        if (text.length > collected.length) {
-          collected = text;
-          clearTimeout(debounce);
-          debounce = setTimeout(function() {
-            obs.disconnect();
-            var tokens = Math.ceil(collected.length / 4);
-            chrome.runtime.sendMessage({
-              type: 'response-received',
-              service: 'google-ai-mode',
-              responseText: collected
-            });
-            hudShow(tokens);
-          }, 2500);
+        text = (el.innerText || '').trim();
+        if (text) break;
+      }
+
+      // 2. Fallback for conversational follow-ups (different DOM structure)
+      //    Walk up max 3 levels from the mutated element.
+      //    - Start from parentElement for text nodes (they have no innerText)
+      //    - Threshold 15 chars: low enough to catch short responses like "3+3=6"
+      //    - Depth 3: avoids landing in large page-level containers
+      if (!text) {
+        for (var m = 0; m < mutations.length; m++) {
+          var node = mutations[m].target;
+          if (node.nodeType === 3) node = node.parentElement; // text node → element
+          for (var d = 0; d < 3; d++) {
+            if (!node || node === document.body) break;
+            var candidate = (node.innerText || '').trim();
+            if (candidate.length >= 15) { text = candidate; break; }
+            node = node.parentElement;
+          }
+          if (text) break;
         }
-        break; // Only check the first matching selector
+      }
+
+      // Only collect text that grew AND differs from the pre-query snapshot
+      if (text.length > collected.length && text !== snapshotText) {
+        collected = text;
+        clearTimeout(debounce);
+        debounce = setTimeout(function() {
+          obs.disconnect();
+          reportResponse(collected);
+        }, 2500);
       }
     });
 

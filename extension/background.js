@@ -1,6 +1,13 @@
 // AI Energy Monitor v3 - Background Service Worker
 var _ = chrome.i18n.getMessage;
 
+// Precise tokenizer for ChatGPT (cl100k_base / gpt-4)
+// Exposes self.chatgptCountTokens(text) → exact token count
+try { importScripts('lib/gpt-tokenizer-cl100k.js'); } catch (e) { /* fallback to char estimate */ }
+
+// Zentrales Storage-Modul (File System API + chrome.storage Puffer)
+importScripts('storage.js');
+
 // --- Energie-Modell: Profile ---
 // Drei kalibrierte Quell-Profile. Das aktive Profil wird aus chrome.storage.local geladen.
 // Formel: E(Wh) = whBase + N_out * whPerToken
@@ -141,13 +148,11 @@ function calcWh(serviceKey, promptTokens, responseTokens) {
 
 // --- Storage Helpers ---
 async function getDayData(date) {
-  const key = `day_${date}`;
-  const result = await chrome.storage.local.get(key);
-  return result[key] || { services: {}, totalWh: 0, requests: [] };
+  return EnergiStorage.getDayData(date);
 }
 
 async function saveDayData(date, dayData) {
-  await chrome.storage.local.set({ [`day_${date}`]: dayData });
+  return EnergiStorage.saveDayData(date, dayData);
 }
 
 // --- Session Tracking ---
@@ -158,8 +163,11 @@ async function recordRequest(serviceKey, data = {}) {
   const today = getToday();
   const dayData = await getDayData(today);
 
-  const promptTokens = estimateTokens(data.promptText);
-  const responseTokens = estimateTokens(data.responseText);
+  const tokenize = (serviceKey === 'chatgpt' || serviceKey === 'copilot') && self.chatgptCountTokens
+    ? self.chatgptCountTokens
+    : estimateTokens;
+  const promptTokens   = tokenize(data.promptText);
+  const responseTokens = tokenize(data.responseText);
   const wh = calcWh(serviceKey, promptTokens, responseTokens);
 
   if (!dayData.services[serviceKey]) {
@@ -175,6 +183,7 @@ async function recordRequest(serviceKey, data = {}) {
 
   // Request-Log (letzte 50 pro Tag)
   dayData.requests.push({
+    id: data.requestId || Date.now(), // stable ID for parallel-request tracking
     service: serviceKey,
     time: Date.now(),
     wh: Math.round(wh * 100) / 100,
@@ -189,7 +198,40 @@ async function recordRequest(serviceKey, data = {}) {
   await saveDayData(today, dayData);
   await updateBadge();
   await checkLimits(dayData.totalWh);
+  await maybeShowFirstDetectionHint(serviceKey);
 }
+
+// --- Erster KI-Request: Hinweis-Fenster zeigen ---
+async function maybeShowFirstDetectionHint(serviceKey) {
+  const data = await chrome.storage.local.get(['_firstRequestSeen', '_fsConnected']);
+  // Nur einmal anzeigen, und nur wenn Onboarding noch nicht abgeschlossen
+  if (data._firstRequestSeen || data._fsConnected) return;
+
+  await chrome.storage.local.set({ _firstRequestSeen: true });
+
+  const label = SERVICE_LABELS[serviceKey] || serviceKey;
+  chrome.notifications.create('first-ai-detected', {
+    type:               'basic',
+    iconUrl:            'icons/icon128.png',
+    title:              _('firstDetectTitle'),
+    message:            _('firstDetectMsg', [label]),
+    requireInteraction: true
+  });
+}
+
+// Klick auf die Notification oeffnet popup.html als kleines Fenster
+chrome.notifications.onClicked.addListener((notifId) => {
+  if (notifId !== 'first-ai-detected') return;
+  chrome.notifications.clear('first-ai-detected');
+  chrome.windows.create({
+    url:    chrome.runtime.getURL('popup.html'),
+    type:   'popup',
+    width:  340,
+    height: 580,
+    top:    48,
+    left:   screen.availWidth - 360
+  });
+});
 
 // --- Feature 4: Echtzeit-Badge ---
 async function updateBadge() {
@@ -313,61 +355,122 @@ async function endSession(tabId) {
 // Wird im Content Script ausgewertet und per Message geschickt
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "prompt-submitted") {
+    // Generate a stable ID before the async recordRequest so it can be
+    // returned synchronously and stored in the request record.
+    const requestId = Date.now();
     recordRequest(msg.service, {
       promptText: msg.promptText,
-      responseText: msg.responseText || ""
+      responseText: msg.responseText || "",
+      requestId
     });
     // Prüfe ob Google gereicht hätte
     const suggestion = analyzePrompt(msg.promptText);
-    sendResponse({ suggestion });
+    sendResponse({ suggestion, requestId });
     return true;
   }
 
   if (msg.type === "response-received") {
-    updateResponseTokens(msg.service, msg.responseText);
-    return;
+    updateResponseTokens(msg.service, msg.responseText, msg.requestId)
+      .then(() => sendResponse({}))
+      .catch(() => sendResponse({}));
+    return true;
   }
 
   if (msg.type === "real-token-data") {
-    updateWithRealTokens(msg.service, msg.promptTokens || 0, msg.responseTokens || 0);
-    return;
+    updateWithRealTokens(msg.service, msg.promptTokens || 0, msg.responseTokens || 0, msg.requestId)
+      .then(() => sendResponse({}))
+      .catch(() => sendResponse({}));
+    return true;
   }
 
   if (msg.type === "get-stats") {
     getDayData(getToday()).then(data => sendResponse(data));
     return true;
   }
+
+  if (msg.type === "fs-connect") {
+    // Popup hat Handle in IndexedDB gespeichert → jetzt initialisieren
+    EnergiStorage.init().then(async connected => {
+      if (connected) {
+        await EnergiStorage.flushBuffer();
+        await EnergiStorage.migrateLocalStorage();
+      }
+      sendResponse({ connected });
+    });
+    return true;
+  }
+
+  if (msg.type === "get-range") {
+    // Dashboard fragt Daten für N Tage ab – liest aus Filesystem wenn verbunden
+    const days  = msg.days || 7;
+    const dates = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
+    }
+    EnergiStorage.init().then(async () => {
+      const result = {};
+      for (const date of dates) {
+        result[date] = await EnergiStorage.getDayData(date);
+      }
+      sendResponse({ data: result });
+    });
+    return true;
+  }
+
+  if (msg.type === "clear-fs-data") {
+    EnergiStorage.init().then(connected => {
+      if (!connected) { sendResponse({ ok: false }); return; }
+      EnergiStorage.clearDataFolder()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+    });
+    return true;
+  }
 });
 
-async function updateResponseTokens(serviceKey, responseText) {
+async function updateResponseTokens(serviceKey, responseText, requestId) {
   const today = getToday();
   const dayData = await getDayData(today);
-
-  // Skip if the last request already has verified real token data from the interceptor.
-  // This prevents the DOM-based estimate from overwriting accurate values.
   const reqs = dayData.requests;
-  if (reqs.length > 0) {
-    const last = reqs[reqs.length - 1];
-    if (last.service === serviceKey && last.realTokens) return;
-  }
 
-  const tokens = estimateTokens(responseText);
-  const extraWh = tokens * (SERVICES[serviceKey]?.whPerToken || 0);
-
-  if (dayData.services[serviceKey]) {
-    dayData.services[serviceKey].responseTokens += tokens;
-    dayData.services[serviceKey].wh += extraWh;
-    dayData.totalWh += extraWh;
-  }
-
-  // Update letzten Request
-  if (dayData.requests.length > 0) {
-    const last = dayData.requests[dayData.requests.length - 1];
-    if (last.service === serviceKey) {
-      last.responseTokens += tokens;
-      last.wh += Math.round(extraWh * 100) / 100;
+  // Find target request: by ID first (parallel-prompt safety), then fallback to last matching service
+  let targetIdx = -1;
+  if (requestId) {
+    for (let i = reqs.length - 1; i >= 0; i--) {
+      if (reqs[i].id === requestId) { targetIdx = i; break; }
     }
   }
+  if (targetIdx === -1) {
+    for (let i = reqs.length - 1; i >= 0; i--) {
+      if (reqs[i].service === serviceKey) { targetIdx = i; break; }
+    }
+  }
+  if (targetIdx === -1) return;
+
+  const target = reqs[targetIdx];
+  // Skip if this request already has verified real token data from the interceptor.
+  if (target.realTokens) return;
+
+  const tokens = estimateTokens(responseText);
+
+  // Delta approach: only add the difference from the previous estimate for this request.
+  const prevTokens = target.responseTokens || 0;
+  const delta = tokens - prevTokens;
+  if (delta <= 0) return; // Response shrunk or unchanged — skip
+
+  const deltaWh = delta * (SERVICES[serviceKey]?.whPerToken || 0);
+  const newWh = calcWh(serviceKey, target.promptTokens || 0, tokens);
+
+  if (dayData.services[serviceKey]) {
+    dayData.services[serviceKey].responseTokens += delta;
+    dayData.services[serviceKey].wh += deltaWh;
+    dayData.totalWh += deltaWh;
+  }
+
+  target.responseTokens = tokens;
+  target.wh = Math.round(newWh * 100) / 100;
 
   await saveDayData(today, dayData);
   await updateBadge();
@@ -376,16 +479,23 @@ async function updateResponseTokens(serviceKey, responseText) {
 // Replaces the estimated token counts for the last request with real values
 // received from the MAIN world fetch interceptor. Uses a delta approach so the
 // function is correct regardless of whether updateResponseTokens already ran.
-async function updateWithRealTokens(serviceKey, promptTokens, responseTokens) {
+async function updateWithRealTokens(serviceKey, promptTokens, responseTokens, requestId) {
   const today = getToday();
   const dayData = await getDayData(today);
 
   if (!dayData.services[serviceKey]) return;
 
-  // Find the last request record for this service
+  // Find target request: by ID first, then fallback to last matching service
   let lastIdx = -1;
-  for (let i = dayData.requests.length - 1; i >= 0; i--) {
-    if (dayData.requests[i].service === serviceKey) { lastIdx = i; break; }
+  if (requestId) {
+    for (let i = dayData.requests.length - 1; i >= 0; i--) {
+      if (dayData.requests[i].id === requestId) { lastIdx = i; break; }
+    }
+  }
+  if (lastIdx === -1) {
+    for (let i = dayData.requests.length - 1; i >= 0; i--) {
+      if (dayData.requests[i].service === serviceKey) { lastIdx = i; break; }
+    }
   }
   if (lastIdx === -1) return;
 
@@ -453,54 +563,6 @@ async function cleanup() {
   }
 }
 
-// --- Icon: Canvas-generated, replaces static PNG on every load ---
-function generateIcon(size) {
-  const canvas = new OffscreenCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-  const s = size;
-  const r = Math.round(s * 0.2);
-
-  // Rounded dark background
-  ctx.fillStyle = '#0c1425';
-  ctx.beginPath();
-  ctx.moveTo(r, 0); ctx.lineTo(s - r, 0);
-  ctx.arcTo(s, 0, s, r, r); ctx.lineTo(s, s - r);
-  ctx.arcTo(s, s, s - r, s, r); ctx.lineTo(r, s);
-  ctx.arcTo(0, s, 0, s - r, r); ctx.lineTo(0, r);
-  ctx.arcTo(0, 0, r, 0, r); ctx.closePath();
-  ctx.fill();
-
-  // Subtle border
-  ctx.strokeStyle = 'rgba(65,197,255,0.3)';
-  ctx.lineWidth = Math.max(1, s * 0.04);
-  ctx.stroke();
-
-  // Glow at larger sizes
-  if (s >= 48) { ctx.shadowColor = '#41c5ff'; ctx.shadowBlur = s * 0.1; }
-
-  // Lightning bolt shape
-  const p = s / 100;
-  ctx.fillStyle = '#41c5ff';
-  ctx.beginPath();
-  ctx.moveTo(p*60, p*6);
-  ctx.lineTo(p*34, p*48);
-  ctx.lineTo(p*50, p*48);
-  ctx.lineTo(p*37, p*94);
-  ctx.lineTo(p*66, p*52);
-  ctx.lineTo(p*50, p*52);
-  ctx.closePath();
-  ctx.fill();
-
-  return ctx.getImageData(0, 0, s, s);
-}
-
-async function setCanvasIcon() {
-  try {
-    const imageData = { '16': generateIcon(16), '48': generateIcon(48), '128': generateIcon(128) };
-    await chrome.action.setIcon({ imageData });
-  } catch (e) { /* fallback to static PNG */ }
-}
-
 // Re-apply profile when user changes setting
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes.settings) {
@@ -514,5 +576,26 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // --- Init ---
 cleanup();
 updateBadge();
-setCanvasIcon();
 loadActiveProfile();
+
+// Storage initialisieren: Handle aus IndexedDB wiederherstellen
+EnergiStorage.init().then(connected => {
+  if (connected) EnergiStorage.flushBuffer();
+});
+
+// Tageswechsel erkennen: Aggregate für gestern berechnen
+let _lastDay = new Date().toISOString().slice(0, 10);
+setInterval(() => {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== _lastDay) {
+    EnergiStorage.onDayRollover(_lastDay);
+    _lastDay = today;
+  }
+}, 60_000); // jede Minute prüfen
+
+// Settings-Backup wenn sich Settings ändern
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.settings?.newValue) {
+    EnergiStorage.backupSettings(changes.settings.newValue);
+  }
+});

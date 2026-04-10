@@ -5,25 +5,140 @@
   <title data-i18n-title="devtestTitle">AI Energy Monitor - Test Center</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f4f6f9; color: #1c3a6c; padding: 24px; max-width: 800px; margin: 0 auto; }
-    h1 { font-size: 20px; margin-bottom: 4px; }
-    .intro { font-size: 13px; color: #6b7a8d; margin-bottom: 24px; line-height: 1.5; }
-    .section { background: #fff; border: 1px solid #dde1e8; border-radius: 6px; padding: 20px; margin-bottom: 16px; }
-    .section-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-    .section-desc { font-size: 12px; color: #6b7a8d; margin-bottom: 14px; line-height: 1.5; }
-    .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eef0f4; font-size: 13px; }
+
+    a, a:visited, a:hover, a:active { color: #059669; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    :focus-visible {
+      outline: 2px solid rgba(16,185,129,0.5);
+      outline-offset: 2px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f3ed;
+      color: #2c2318;
+      padding: 28px 24px;
+      max-width: 800px;
+      margin: 0 auto;
+      font-size: 13px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .intro {
+      font-size: 13px;
+      color: #7a6a58;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .section {
+      background: #fefcf8;
+      border: 1px solid rgba(160,130,90,0.18);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      color: #7a6a58;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(160,130,90,0.12);
+      font-size: 13px;
+    }
+
     .row:last-child { border-bottom: none; }
-    .tag { display: inline-block; padding: 3px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; }
-    .tag.ok { background: #d1fae5; color: #065f46; }
-    .tag.fail { background: #fee2e2; color: #991b1b; }
-    .tag.wait { background: #fef3c7; color: #92400e; }
-    .btn { padding: 8px 16px; background: #003770; color: #fff; border: none; border-radius: 4px; font: 600 13px Arial; cursor: pointer; margin: 3px; }
-    .btn:hover { background: #002855; }
-    .btn.green { background: #2ac878; }
-    .btn.red { background: #e63946; }
-    .btn.grey { background: #6b7a8d; }
-    .result { margin-top: 10px; padding: 12px; background: #002855; color: #2ac878; font-family: monospace; font-size: 12px; border-radius: 4px; min-height: 44px; max-height: 250px; overflow: auto; }
-    pre { background: #1c3a6c; color: #41c5ff; padding: 12px; border-radius: 4px; font-size: 11px; max-height: 200px; overflow: auto; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .tag.ok   { background: rgba(16,185,129,0.12); color: #065f46; }
+    .tag.fail { background: rgba(220,38,38,0.1);   color: #991b1b; }
+    .tag.wait { background: rgba(217,119,6,0.1);   color: #92400e; }
+
+    .btn {
+      padding: 8px 16px;
+      background: #10b981;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      cursor: pointer;
+      margin: 3px;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #059669; }
+
+    .btn.green { background: #10b981; }
+    .btn.green:hover { background: #059669; }
+
+    .btn.red { background: #dc2626; }
+    .btn.red:hover { background: #b91c1c; }
+
+    .btn.grey {
+      background: #ede7dc;
+      color: #5a4c3c;
+      border: 1px solid rgba(160,130,90,0.22);
+    }
+    .btn.grey:hover { background: #e4ddd1; color: #2c2318; }
+
+    .result {
+      margin-top: 10px;
+      padding: 12px;
+      background: #ede7dc;
+      color: #2c2318;
+      font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(160,130,90,0.18);
+      min-height: 44px;
+      max-height: 250px;
+      overflow: auto;
+    }
+
+    pre {
+      background: #ede7dc;
+      color: #2c2318;
+      border: 1px solid rgba(160,130,90,0.18);
+      padding: 12px;
+      border-radius: 6px;
+      font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      max-height: 200px;
+      overflow: auto;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>

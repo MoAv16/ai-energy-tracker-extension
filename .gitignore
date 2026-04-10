@@ -4,6 +4,8 @@ CLAUDE.md
 
 # Build artifacts
 *.zip
+*.crx
+*.pem
 
 # OS files
 Thumbs.db

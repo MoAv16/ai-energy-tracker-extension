@@ -90,22 +90,91 @@
     var lastText = "";
     var lastTime = 0;
     var DEBOUNCE = 3000;
-    var suggestionBanner = null;
 
+    // Gesamte Service-Konfiguration: promptInput + optionale Modi + optionaler Modell-Selektor
+    var SERVICE_CONFIG = {
+      chatgpt:    {
+        promptInput:   '#prompt-textarea',
+        modelSelector: '[data-testid="model-switcher-dropdown-button"]',
+        modes: {
+          think:        'button.__composer-pill[aria-label*="Think"]',
+          deepResearch: 'button.__composer-pill[aria-label*="Deep Research"]'
+        }
+      },
+      claude:     {
+        promptInput:   '[data-testid="chat-input"]',
+        modelSelector: '[data-testid="model-selector-dropdown"] .whitespace-nowrap',
+        modes: {
+          think: '[data-testid="model-selector-dropdown"] span'
+        }
+      },
+      gemini:     { promptInput: '.ql-editor[contenteditable="true"]' },
+      perplexity: { promptInput: '#ask-input' },
+      copilot:    { promptInput: '[data-testid="composer-input"]' }
+    };
+
+    function isPromptInput(el) {
+      if (!el) return false;
+      var cfg = SERVICE_CONFIG[service];
+      if (!cfg) return true; // Service nicht gemappt → altes Verhalten beibehalten
+      return !!(el.matches && (el.matches(cfg.promptInput) || el.closest(cfg.promptInput)));
+    }
+
+    function getActiveMode() {
+      var cfg = SERVICE_CONFIG[service];
+      if (!cfg || !cfg.modes) return null;
+      for (var mode in cfg.modes) {
+        if (document.querySelector(cfg.modes[mode])) return mode;
+      }
+      return null;
+    }
+
+    function getActiveModel() {
+      var cfg = SERVICE_CONFIG[service];
+      if (!cfg || !cfg.modelSelector) return null;
+      var el = document.querySelector(cfg.modelSelector);
+      return el ? el.textContent.trim() : null;
+    }
     // Receive real token data from the MAIN world interceptor (interceptor.js)
     // and forward it to the background service worker.
+    // Uses hudActiveCard + lastRequestId: ChatGPT blocks concurrent requests,
+    // so the most recent card/id always corresponds to this interceptor response.
+    var detectedModelSlug = null; // vom interceptor gesetzt, bevor Nachricht gesendet wird
+
     window.addEventListener('message', function(e) {
       if (e.source !== window) return;
-      if (!e.data || e.data.type !== 'ai-real-tokens') return;
+      if (!e.data) return;
       if (e.data.service !== service) return;
+
+      // Modell früh erkannt (conversation/init JSON) → Dots-Animation → sanfter Übergang
+      if (e.data.type === 'ai-model-detected') {
+        detectedModelSlug = e.data.model;
+        clearInterval(detectionToastDotsTimer);
+        if (detectionToastModelEl) {
+          detectionToastModelEl.style.opacity = '0';
+          setTimeout(function() {
+            if (detectionToastModelEl) {
+              detectionToastModelEl.textContent = e.data.model;
+              detectionToastModelEl.style.opacity = '1';
+            }
+          }, 200);
+        }
+        return;
+      }
+
+      if (e.data.type !== 'ai-real-tokens') return;
+      if (!chrome.runtime || !chrome.runtime.id) return;
       chrome.runtime.sendMessage({
         type: 'real-token-data',
         service: service,
         promptTokens: e.data.promptTokens || 0,
-        responseTokens: e.data.responseTokens || 0
-      });
-      // Update HUD with verified real token counts
-      hudUpdateTokens(e.data.promptTokens || 0, e.data.responseTokens || 0, true);
+        responseTokens: e.data.responseTokens || 0,
+        requestId: lastRequestId
+      }, function() { void chrome.runtime.lastError; });
+      // Update HUD with verified real token counts + model
+      hudUpdateTokens(hudActiveCard, e.data.promptTokens || 0, e.data.responseTokens || 0, true);
+      var model = e.data.model || detectedModelSlug;
+      if (model) hudUpdateModel(hudActiveCard, model);
     });
 
     // ─── Token HUD ─────────────────────────────────────────────────
@@ -135,21 +204,21 @@
       if (d.settings && d.settings.energyProfile) activeHudProfile = d.settings.energyProfile;
     });
 
+    // Container (fixed, always in DOM) + stack of cards (one per request)
     var hudHost = null;
     var hudRoot = null;
-    var hudTimer = null;
-
-    function hudQ(id) { return hudRoot ? hudRoot.querySelector('#' + id) : null; }
+    var hudStack = null;  // flex-column inside shadow DOM
+    var hudCards = [];    // active card elements
+    var hudActiveCard = null; // most recent card (used by interceptor path)
+    var lastRequestId = null; // tracks the most recently submitted requestId (interceptor path)
 
     function hudBuild() {
       if (hudHost) return;
       hudHost = document.createElement('div');
       hudHost.id = '__aem-hud__';
-      hudHost.style.cssText = 'position:fixed;top:70px;right:20px;z-index:2147483647;display:none;pointer-events:none;';
+      hudHost.style.cssText = 'position:fixed;top:70px;right:20px;z-index:2147483647;pointer-events:none;';
       document.body.appendChild(hudHost);
       hudRoot = hudHost.attachShadow({ mode: 'open' });
-
-      var svcName = HUD_LABELS[service] || service;
 
       // All styles scoped inside Shadow DOM - zero page interference
       var styleEl = document.createElement('style');
@@ -157,6 +226,7 @@
         '@keyframes si{from{transform:translateX(112%);opacity:0}to{transform:translateX(0);opacity:1}}',
         '@keyframes so{from{transform:translateX(0);opacity:1}to{transform:translateX(112%);opacity:0}}',
         '@keyframes bl{0%,100%{opacity:1}50%{opacity:0.25}}',
+        '.stack{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}',
         '.box{',
           'width:215px;',
           'background:rgba(6,13,26,0.96);',
@@ -169,6 +239,8 @@
           'font-family:"Segoe UI",Arial,sans-serif;',
         '}',
         '.box.out{animation:so .28s ease both;}',
+        '.box.dim{opacity:0.35;transition:opacity .6s ease;}',
+        '.box.dim:hover{opacity:1;transition:opacity .2s ease;}',
         '.hdr{display:flex;align-items:center;justify-content:space-between;',
           'margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(65,197,255,0.08);}',
         '.sn{font:700 12px "Segoe UI",Arial,sans-serif;color:#ddeeff;letter-spacing:.3px;}',
@@ -193,32 +265,15 @@
         '.rb{margin-left:auto;font:700 7px "Segoe UI",Arial,sans-serif;padding:2px 5px;',
           'border-radius:3px;background:rgba(65,197,255,0.1);color:#41c5ff;',
           'letter-spacing:.6px;opacity:0;transition:opacity .3s;}',
-        '.rb.on{opacity:1;}'
+        '.rb.on{opacity:1;}',
+        '.hm{font:500 10px "Courier New",Consolas,monospace;color:#2a5a7a;',
+          'letter-spacing:.2px;margin-top:2px;min-height:12px;}'
       ].join('');
 
-      var box = document.createElement('div');
-      box.className = 'box';
-      box.innerHTML =
-        '<div class="hdr">' +
-          '<div style="display:flex;align-items:center;gap:7px;">' +
-            '<div class="dot"></div>' +
-            '<span class="sn">' + svcName + '</span>' +
-          '</div>' +
-          '<button class="xi" id="xi">&#x2715;</button>' +
-        '</div>' +
-        '<div class="row"><span class="dir di">IN &#8593;</span>' +
-          '<span class="cnt ci" id="hi">0</span><span class="un">tokens</span></div>' +
-        '<div class="row"><span class="dir do">OUT &#8595;</span>' +
-          '<span class="cnt co spin" id="ho">&#8226;&#8226;&#8226;</span><span class="un">tokens</span></div>' +
-        '<div class="ft">' +
-          '<span class="wl">energy</span>' +
-          '<span class="wv" id="hw">&mdash;</span>' +
-          '<span class="rb" id="hr">REAL</span>' +
-        '</div>';
-
+      hudStack = document.createElement('div');
+      hudStack.className = 'stack';
       hudRoot.appendChild(styleEl);
-      hudRoot.appendChild(box);
-      hudRoot.querySelector('#xi').addEventListener('click', hudHide);
+      hudRoot.appendChild(hudStack);
     }
 
     function hudCountUp(el, target, ms) {
@@ -232,52 +287,134 @@
       })();
     }
 
-    function hudShow(inTokens) {
-      hudBuild();
-      clearTimeout(hudTimer);
-      var box = hudRoot.querySelector('.box');
-      var elIn = hudQ('hi'), elOut = hudQ('ho'), elWh = hudQ('hw'), elR = hudQ('hr');
-      if (box) box.classList.remove('out');
-      if (elIn) elIn.textContent = inTokens;
-      if (elOut) { elOut.textContent = '\u2022\u2022\u2022'; elOut.classList.add('spin'); }
-      if (elWh) elWh.innerHTML = '&mdash;';
-      if (elR) elR.classList.remove('on');
-      hudHost.style.display = 'block';
-      hudSchedule();
+    function hudHideCard(card) {
+      clearTimeout(card._dimTimer);
+      clearTimeout(card._hudTimer);
+      card.classList.add('out');
+      setTimeout(function() {
+        if (card.parentNode) card.parentNode.removeChild(card);
+        var idx = hudCards.indexOf(card);
+        if (idx !== -1) hudCards.splice(idx, 1);
+        if (hudActiveCard === card) {
+          hudActiveCard = hudCards.length > 0 ? hudCards[hudCards.length - 1] : null;
+        }
+      }, 300);
     }
 
-    function hudUpdateTokens(inTok, outTok, isReal) {
-      if (!hudHost || hudHost.style.display === 'none') return;
-      clearTimeout(hudTimer);
-      var elIn = hudQ('hi'), elOut = hudQ('ho'), elWh = hudQ('hw'), elR = hudQ('hr');
+    function hudShow(inTokens, model) {
+      hudBuild();
+      var svcName = HUD_LABELS[service] || service;
+      var box = document.createElement('div');
+      box.className = 'box';
+      box.innerHTML =
+        '<div class="hdr">' +
+          '<div style="display:flex;flex-direction:column;">' +
+            '<div style="display:flex;align-items:center;gap:7px;">' +
+              '<div class="dot"></div>' +
+              '<span class="sn">' + svcName + '</span>' +
+            '</div>' +
+            '<span class="hm hmod">' + (model || '') + '</span>' +
+          '</div>' +
+          '<button class="xi">&#x2715;</button>' +
+        '</div>' +
+        '<div class="row"><span class="dir di">IN &#8593;</span>' +
+          '<span class="cnt ci hi">' + inTokens + '</span><span class="un">tokens</span></div>' +
+        '<div class="row"><span class="dir do">OUT &#8595;</span>' +
+          '<span class="cnt co spin ho">&#8226;&#8226;&#8226;</span><span class="un">tokens</span></div>' +
+        '<div class="ft">' +
+          '<span class="wl">energy</span>' +
+          '<span class="wv hw">&mdash;</span>' +
+          '<span class="rb hr">REAL</span>' +
+        '</div>';
+      hudStack.appendChild(box);
+      hudCards.push(box);
+      hudActiveCard = box;
+      box.querySelector('.xi').addEventListener('click', function() { hudHideCard(box); });
+      // After 3s: if OUT not yet received → hide card, mark as hiddenEarly.
+      // hudUpdateTokens will then show a fresh result card when output arrives.
+      box._outputReceived = false;
+      box._hiddenEarly    = false;
+      box._earlyHideTimer = setTimeout(function() {
+        if (!box._outputReceived) {
+          box._hiddenEarly = true;
+          hudHideCard(box);
+        }
+      }, 3000);
+    }
+
+    function hudUpdateTokens(card, inTok, outTok, isReal) {
+      if (!card) return;
+      card._outputReceived = true;
+      clearTimeout(card._earlyHideTimer);
+
+      // Card was hidden early (3s elapsed) → show a fresh result card instead
+      if (card._hiddenEarly) {
+        hudShowResult(inTok, outTok, isReal);
+        return;
+      }
+
+      // Card still visible → update in place
+      var elIn = card.querySelector('.hi');
+      var elOut = card.querySelector('.ho');
+      var elWh = card.querySelector('.hw');
+      var elR = card.querySelector('.hr');
       if (elIn && inTok > 0) elIn.textContent = inTok;
       if (elOut) { elOut.classList.remove('spin'); hudCountUp(elOut, outTok, 850); }
-      // Wh preview mirrors calcWh in background.js: base + outputTokens * rate
       var prof = HUD_PROFILES[activeHudProfile] || HUD_PROFILES.altman;
       var svcCfg = prof[service] || prof.chatgpt;
       var wh = (svcCfg.b + outTok * svcCfg.r).toFixed(2);
       if (elWh) elWh.textContent = wh + ' Wh';
       if (isReal && elR) elR.classList.add('on');
-      hudSchedule();
+      clearTimeout(card._hudTimer);
+      card._hudTimer = setTimeout(function() { hudHideCard(card); }, 8000);
+    }
+
+    function hudShowResult(inTok, outTok, isReal) {
+      hudBuild();
+      var svcName = HUD_LABELS[service] || service;
+      var prof    = HUD_PROFILES[activeHudProfile] || HUD_PROFILES.altman;
+      var svcCfg  = prof[service] || prof.chatgpt;
+      var wh      = (svcCfg.b + outTok * svcCfg.r).toFixed(2);
+      var box     = document.createElement('div');
+      box.className = 'box';
+      box.innerHTML =
+        '<div class="hdr">' +
+          '<div style="display:flex;align-items:center;gap:7px;">' +
+            '<span class="sn">' + svcName + '</span>' +
+          '</div>' +
+          '<button class="xi">&#x2715;</button>' +
+        '</div>' +
+        '<div class="row"><span class="dir di">IN &#8593;</span>' +
+          '<span class="cnt ci hi">' + (inTok || 0) + '</span><span class="un">tokens</span></div>' +
+        '<div class="row"><span class="dir do">OUT &#8595;</span>' +
+          '<span class="cnt co ho">' + outTok + '</span><span class="un">tokens</span></div>' +
+        '<div class="ft">' +
+          '<span class="wl">energy</span>' +
+          '<span class="wv">' + wh + ' Wh</span>' +
+          (isReal ? '<span class="rb on">REAL</span>' : '') +
+        '</div>';
+      hudStack.appendChild(box);
+      hudCards.push(box);
+      box.querySelector('.xi').addEventListener('click', function() { hudHideCard(box); });
+      box._outputReceived = true;
+      box._hiddenEarly    = false;
+      box._hudTimer = setTimeout(function() { hudHideCard(box); }, 8000);
+    }
+
+    function hudUpdateModel(card, model) {
+      if (!card || !model) return;
+      var el = card.querySelector('.hmod');
+      if (el) el.textContent = model;
     }
 
     function hudHide() {
-      if (!hudHost) return;
-      var box = hudRoot ? hudRoot.querySelector('.box') : null;
-      if (box) {
-        box.classList.add('out');
-        setTimeout(function() { if (hudHost) hudHost.style.display = 'none'; }, 300);
-      } else {
-        hudHost.style.display = 'none';
-      }
+      var cards = hudCards.slice();
+      for (var i = 0; i < cards.length; i++) hudHideCard(cards[i]);
     }
 
-    function hudSchedule() {
-      clearTimeout(hudTimer);
-      hudTimer = setTimeout(hudHide, 8000);
-    }
-
-    // Brief detection toast when AI site is first detected
+    // Detection toast mit animierter Modell-Zeile
+    var detectionToastModelEl = null;
+    var detectionToastDotsTimer = null;
     (function showDetectionToast() {
       var svcName = HUD_LABELS[service] || service;
       var toast = document.createElement('div');
@@ -291,36 +428,77 @@
         'color:#ddeeff;pointer-events:none;',
         'box-shadow:0 8px 28px rgba(0,0,0,0.55);'
       ].join('');
-      toast.innerHTML =
-        '<span style="color:#41c5ff;font-size:13px;">&#9889;</span>' +
-        '<span>' + svcName + ' detected</span>';
+
+      // Modell-Wert-Span mit Transition für sanften Übergang
+      var modelVal = document.createElement('span');
+      modelVal.style.cssText = 'transition:opacity 0.35s ease;opacity:0.45;';
+      modelVal.textContent = '···';
+
+      var modelRow = document.createElement('span');
+      modelRow.style.cssText = 'font:500 10px "Segoe UI",Arial,sans-serif;color:#41c5ff;margin-top:2px;display:block;';
+      modelRow.appendChild(document.createTextNode('Model: '));
+      modelRow.appendChild(modelVal);
+      detectionToastModelEl = modelVal;
+
+      // Dots-Animation während auf Modell gewartet wird
+      var dots = ['·', '··', '···'];
+      var di = 0;
+      detectionToastDotsTimer = setInterval(function() {
+        if (detectionToastModelEl === modelVal) modelVal.textContent = dots[di++ % 3];
+      }, 380);
+
+      var textCol = document.createElement('div');
+      textCol.style.cssText = 'display:flex;flex-direction:column;';
+      textCol.innerHTML = '<span>' + svcName + ' detected</span>';
+      textCol.appendChild(modelRow);
+
+      toast.innerHTML = '<span style="color:#41c5ff;font-size:13px;">&#9889;</span>';
+      toast.appendChild(textCol);
       document.body.appendChild(toast);
-      // Slide down from extension icon area (top-right)
       toast.animate(
         [{ transform: 'translateY(-12px)', opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }],
         { duration: 300, easing: 'cubic-bezier(0.34,1.56,0.64,1)', fill: 'both' }
       );
-      // Hold longer, then fade out (ausblassen)
       setTimeout(function() {
+        clearInterval(detectionToastDotsTimer);
         var out = toast.animate(
           [{ opacity: 1 }, { opacity: 0 }],
           { duration: 700, easing: 'ease', fill: 'both' }
         );
-        out.onfinish = function() { toast.remove(); };
+        out.onfinish = function() { toast.remove(); detectionToastModelEl = null; };
       }, 3500);
     })();
     // ─── End HUD ───────────────────────────────────────────────────
 
+    // Recursive shadow-DOM query – pierces all open shadow roots
+    function deepQuery(selector, root) {
+      root = root || document;
+      var el = root.querySelector(selector);
+      if (el) return el;
+      var all = root.querySelectorAll("*");
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].shadowRoot) {
+          var found = deepQuery(selector, all[i].shadowRoot);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
     // Finde das Eingabefeld
     function findInput() {
-      // Versuch 1: Aktives Element wenn es editierbar ist
+      // Versuch 1: Aktives Element - auch tief in Shadow DOM verfolgen
       var active = document.activeElement;
+      // Dive into nested shadow roots to find the truly focused element
+      while (active && active.shadowRoot && active.shadowRoot.activeElement) {
+        active = active.shadowRoot.activeElement;
+      }
       if (active) {
         if (active.tagName === "TEXTAREA") return active;
         if (active.getAttribute("contenteditable") === "true") return active;
         if (active.tagName === "INPUT" && active.type === "text") return active;
       }
-      // Versuch 2: Bekannte Selektoren
+      // Versuch 2: Bekannte Selektoren (inkl. Shadow DOM)
       var selectors = [
         "textarea",
         "[contenteditable='true']",
@@ -329,7 +507,7 @@
         "[data-testid='text-input']"
       ];
       for (var i = 0; i < selectors.length; i++) {
-        var el = document.querySelector(selectors[i]);
+        var el = deepQuery(selectors[i]);
         if (el) return el;
       }
       return null;
@@ -348,27 +526,42 @@
       lastText = text;
       lastTime = now;
 
-      // Show HUD with estimated IN token count immediately
-      hudShow(Math.ceil(text.length / 4));
+      // Show HUD with estimated IN token count immediately, then capture the
+      // created card so watchForResponse can target it even after hudActiveCard
+      // has moved on to the next prompt's card.
+      var detectedModel = getActiveModel();
+      var svcLabel = HUD_LABELS[service] || service;
+      if (detectedModel === svcLabel) detectedModel = null; // Service-Name ist kein Modell-Name
+      hudShow(Math.ceil(text.length / 4), detectedModel || detectedModelSlug);
+      var myCard = hudActiveCard;
+      var myRequestId = null; // filled in via sendResponse callback below
 
+      if (!chrome.runtime || !chrome.runtime.id) return; // extension context invalidated
       chrome.runtime.sendMessage({
         type: "prompt-submitted",
         service: service,
         promptText: text,
-        responseText: ""
+        responseText: "",
+        mode: getActiveMode(),
+        model: getActiveModel()
       }, function(resp) {
-        if (resp && resp.suggestion) {
-          showSuggestion(resp.suggestion);
+        if (chrome.runtime.lastError) return; // service worker was sleeping
+        if (resp && resp.requestId) {
+          myRequestId = resp.requestId;
+          lastRequestId = resp.requestId; // keep global in sync for interceptor path
         }
       });
 
-      // Antwort beobachten
-      watchForResponse();
+      // Pass the captured card + a getter for this prompt's requestId.
+      // watchForResponse will only update myCard and report to myRequestId,
+      // regardless of how many new prompts arrive before the response finishes.
+      watchForResponse(myCard, function() { return myRequestId; });
     }
 
     // Enter-Taste abfangen
     document.addEventListener("keydown", function(e) {
       if (e.key === "Enter" && !e.shiftKey) {
+        if (!isPromptInput(e.target)) return;
         var text = getInputText();
         if (text) {
           // Kurz warten damit das Senden durchgeht
@@ -379,7 +572,14 @@
 
     // Klick auf jeden Button beobachten der nach "Senden" aussieht
     document.addEventListener("click", function(e) {
+      // Also check composed path to catch clicks inside shadow DOM (e.g. Copilot)
+      var composedPath = e.composedPath ? e.composedPath() : [];
       var btn = e.target.closest("button");
+      if (!btn) {
+        for (var p = 0; p < composedPath.length; p++) {
+          if (composedPath[p].tagName === "BUTTON") { btn = composedPath[p]; break; }
+        }
+      }
       if (!btn) return;
 
       var dominated = false;
@@ -410,31 +610,53 @@
     }, true);
 
     // Antwort-Beobachtung
-    function watchForResponse() {
+    // myCard   – the HUD card created for this specific prompt (captured in submitPrompt)
+    // getReqId – getter function returning the requestId for this prompt (set async via sendResponse)
+    function watchForResponse(myCard, getReqId) {
       var collected = "";
       var timeout = null;
-      var obs = new MutationObserver(function() {
-        // Suche nach dem laengsten Textblock der sich veraendert
-        var candidates = document.querySelectorAll(
-          "[data-message-author-role='assistant'], " +
+      // Gemini: tight selector targets only the actual response content elements,
+      // avoiding broad class wildcards that match UI chrome (footers, related questions, etc.)
+      var SELECTOR = (service === 'gemini')
+        ? "model-response, .model-response-text, response-content, .markdown, [data-is-streaming]"
+        : (service === 'copilot')
+        ? "[data-testid='ai-message']"
+        : "[data-message-author-role='assistant'], " +
           ".markdown, .prose, .response-content, " +
           "[class*='message'][class*='assistant'], " +
           "[class*='response'], [class*='answer'], " +
-          "[data-is-streaming]"
-        );
+          "[data-is-streaming], " +
+          "model-response, .model-response-text, " +
+          "[class*='model-response'], response-content";
+
+      // Snapshot existing elements (with content) so we don't re-report
+      // previous conversation turns — each new response is a new DOM element
+      var prevElements = new Set();
+      var prevCandidates = document.querySelectorAll(SELECTOR);
+      for (var j = 0; j < prevCandidates.length; j++) {
+        if ((prevCandidates[j].innerText || '').trim().length > 10) {
+          prevElements.add(prevCandidates[j]);
+        }
+      }
+
+      var obs = new MutationObserver(function() {
+        var candidates = document.querySelectorAll(SELECTOR);
         for (var i = candidates.length - 1; i >= 0; i--) {
+          if (prevElements.has(candidates[i])) continue; // skip pre-existing elements
           var t = (candidates[i].innerText || "").trim();
           if (t.length > collected.length) {
             collected = t;
             clearTimeout(timeout);
             timeout = setTimeout(function() {
+              if (!chrome.runtime || !chrome.runtime.id) { obs.disconnect(); return; }
               chrome.runtime.sendMessage({
                 type: "response-received",
                 service: service,
-                responseText: collected
-              });
-              // Update HUD with DOM-based estimate (fallback for non-intercepted services)
-              hudUpdateTokens(0, Math.ceil(collected.length / 4), false);
+                responseText: collected,
+                requestId: getReqId() // target this prompt's request, not the latest one
+              }, function() { void chrome.runtime.lastError; });
+              // Update this prompt's HUD card (not hudActiveCard which may have moved on)
+              hudUpdateTokens(myCard, 0, Math.ceil(collected.length / 4), false);
               obs.disconnect();
             }, 2500);
             break;
@@ -442,22 +664,10 @@
         }
       });
       obs.observe(document.body, { childList: true, subtree: true, characterData: true });
-      setTimeout(function() { obs.disconnect(); }, 60000);
+      setTimeout(function() { obs.disconnect(); }, 120000);
     }
 
-    // Alternativ-Vorschlag Banner
-    function showSuggestion(text) {
-      if (suggestionBanner) suggestionBanner.remove();
-      suggestionBanner = document.createElement("div");
-      suggestionBanner.style.cssText =
-        "position:fixed;bottom:80px;left:50%;transform:translateX(-50%);" +
-        "background:#003770;color:#fff;padding:10px 20px;border-radius:6px;" +
-        "font:13px Arial,sans-serif;z-index:99999;max-width:500px;" +
-        "box-shadow:0 2px 12px rgba(0,0,0,0.3);cursor:pointer;";
-      suggestionBanner.textContent = text;
-      suggestionBanner.addEventListener("click", function() { suggestionBanner.remove(); });
-      document.body.appendChild(suggestionBanner);
-      setTimeout(function() { if (suggestionBanner) suggestionBanner.remove(); }, 8000);
-    }
   }
 })();
+
+

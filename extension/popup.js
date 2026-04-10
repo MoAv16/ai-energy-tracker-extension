@@ -2,6 +2,26 @@
 
 var _ = chrome.i18n.getMessage;
 
+// ── IndexedDB: Handle speichern (gleiche DB wie storage.js) ──────────────────
+function _obOpenDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('energiescout', 1);
+    req.onupgradeneeded = function(e) { e.target.result.createObjectStore('fs'); };
+    req.onsuccess  = function(e) { resolve(e.target.result); };
+    req.onerror    = function(e) { reject(e.target.error); };
+  });
+}
+
+function _obSaveHandle(handle) {
+  return _obOpenDB().then(function(db) {
+    return new Promise(function(resolve, reject) {
+      var req = db.transaction('fs', 'readwrite').objectStore('fs').put(handle, 'rootHandle');
+      req.onsuccess = function() { resolve(); };
+      req.onerror   = function(e) { reject(e.target.error); };
+    });
+  });
+}
+
 // Animate a numeric element from 0 to target with ease-out cubic
 function animateCountUp(el, target, duration) {
   var start = performance.now();
@@ -37,31 +57,6 @@ var OPTIONAL_SERVICES = {
 // Aktive Dienste (wird beim Start geladen)
 var SERVICES = Object.assign({}, STANDARD_SERVICES);
 
-// --- Psychologische Vergleichsskala ---
-function getImpactText(wh) {
-  if (wh < 1) return _("impactNone");
-  if (wh < 5)
-    return _("impactGoogle", [String(Math.round(wh / 0.3))]);
-  if (wh < 10)
-    return _("impactLed", [String(Math.round(wh / 10 * 60))]);
-  if (wh < 20)
-    return _("impactPhone", [String(Math.round(wh / 15 * 100))]);
-  if (wh < 30)
-    return _("impactAfrica", [String(Math.round(wh))]);
-  if (wh < 45)
-    return _("impactCo2", [String((wh * 0.4).toFixed(0)), String((wh * 0.4 / 150 * 1000).toFixed(0))]);
-  if (wh < 60)
-    return _("impactWater", [String(Math.round(wh)), String((wh / 3).toFixed(0))]);
-  if (wh < 80)
-    return _("impactCooling", [String((wh * 0.005).toFixed(1))]);
-  if (wh < 100)
-    return _("impactFridge", [String(Math.round(wh)), String((wh / 40).toFixed(1))]);
-  if (wh < 150)
-    return _("impactTv", [String(Math.round(wh))]);
-  if (wh < 250)
-    return _("impactWashing", [String(Math.round(wh))]);
-  return _("impactMax", [String(Math.round(wh))]);
-}
 
 function getToday() {
   return new Date().toISOString().slice(0, 10);
@@ -112,7 +107,7 @@ function drawWeekChart(values, weekDays) {
   var canvas = document.getElementById("weekChart");
   if (!canvas) return;
   var ctx = canvas.getContext("2d");
-  canvas.width = canvas.offsetWidth;
+  canvas.width = canvas.offsetWidth || 280;
   var w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
 
@@ -129,7 +124,7 @@ function drawWeekChart(values, weekDays) {
     var isToday = weekDays[i] === todayStr;
 
     // Bar
-    ctx.fillStyle = isFuture ? "#e8ecf1" : (isToday ? "#003770" : "#41c5ff");
+    ctx.fillStyle = isFuture ? "#e4ddd1" : (isToday ? "#059669" : "#10b981");
     // roundRect with fallback for older browsers
     ctx.beginPath();
     if (ctx.roundRect) {
@@ -152,8 +147,51 @@ function drawWeekChart(values, weekDays) {
 // --- Alle Event-Listener sofort registrieren ---
 document.addEventListener("DOMContentLoaded", function() {
 
-  // Optionale Dienste aus Einstellungen laden
-  chrome.storage.local.get("settings", function(data) {
+  var onboardingEl   = document.getElementById('onboarding');
+  var mainContentEl  = document.getElementById('mainContent');
+
+  // ── Onboarding pruefen ────────────────────────────────────────────────────
+  chrome.storage.local.get('_fsConnected', function(d) {
+    if (d._fsConnected) {
+      // Ordner bereits verbunden – normal anzeigen
+      showMain();
+    } else {
+      // Onboarding anzeigen
+      onboardingEl.classList.remove('hidden');
+    }
+  });
+
+  document.getElementById('btnChooseFolder').addEventListener('click', function() {
+    var folderName = _('dataFolderName') || 'AI Energy-Monitor';
+    window.showDirectoryPicker({ startIn: 'documents', id: 'energiescout-root', mode: 'readwrite' })
+      .then(function(dirHandle) {
+        // Unterordner mit lokalisierten Namen anlegen
+        return dirHandle.getDirectoryHandle(folderName, { create: true })
+          .then(function(appDir) {
+            return _obSaveHandle(appDir).then(function() { return appDir; });
+          });
+      })
+      .then(function() {
+        // Background informieren: EnergiStorage.init() + flushBuffer()
+        chrome.runtime.sendMessage({ type: 'fs-connect' });
+        chrome.storage.local.set({ _fsConnected: true });
+        onboardingEl.classList.add('hidden');
+        showMain();
+      })
+      .catch(function(e) {
+        if (e && e.name !== 'AbortError') {
+          document.getElementById('obError').classList.remove('hidden');
+        }
+      });
+  });
+
+  function showMain() {
+    mainContentEl.classList.remove('hidden');
+    // Optionale Dienste aus Einstellungen laden
+    chrome.storage.local.get("settings", loadServicesAndRender);
+  }
+
+  function loadServicesAndRender(data) {
     var settings = data.settings || {};
     var optional = settings.optionalServices || {};
     var standard = settings.standardServices || {};
@@ -169,7 +207,7 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     }
     renderPopup();
-  });
+  }
 
   // Status orb: check if current tab is an AI service
   chrome.storage.local.get('_activeService', function(d) {
@@ -181,16 +219,9 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   });
 
-  // Dashboard oeffnen (URL aus Settings, Fallback: settings.html)
+  // Dashboard oeffnen
   document.getElementById("openDashboard").addEventListener("click", function() {
-    chrome.storage.local.get("settings", function(data) {
-      var url = (data.settings && data.settings.dashboardUrl) || "";
-      if (url) {
-        chrome.tabs.create({ url: url });
-      } else {
-        chrome.tabs.create({ url: chrome.runtime.getURL("settings.html") });
-      }
-    });
+    chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
   });
 
   // Einstellungen oeffnen
@@ -206,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function() {
   chrome.storage.local.get(keys, (allData) => {
     if (chrome.runtime.lastError) {
       console.error("Storage Error:", chrome.runtime.lastError);
-      return;
+      allData = {}; // render with empty defaults instead of blank popup
     }
 
     var todayData = allData["day_" + today] || { services: {}, totalWh: 0, requests: [] };
@@ -224,7 +255,6 @@ document.addEventListener("DOMContentLoaded", function() {
         whEl.textContent = todayWh.toFixed(1);
       }
     });
-    document.getElementById("todayCompare").textContent = getImpactText(todayWh);
 
     var dailyWh = days.map(function(d) {
       var dd = allData["day_" + d];
@@ -242,36 +272,44 @@ document.addEventListener("DOMContentLoaded", function() {
 
     var table = document.getElementById("serviceList");
     table.innerHTML = "";
+    // Collect used services, then sort by Wh descending
+    var serviceRows = [];
     for (var key in SERVICES) {
-      var info = SERVICES[key];
       var svc = (todayData.services && todayData.services[key]) || { count: 0, wh: 0, timeSpentMs: 0 };
-      // Only render services that have been used today
       if (!(svc.wh > 0 || svc.count > 0)) continue;
+      serviceRows.push({ key: key, info: SERVICES[key], svc: svc });
+    }
+    serviceRows.sort(function(a, b) { return (b.svc.wh || 0) - (a.svc.wh || 0); });
+    for (var r = 0; r < serviceRows.length; r++) {
+      var row = serviceRows[r];
       var tr = document.createElement("tr");
-      var whVal = (svc.wh || 0).toFixed(1);
+      var whVal = (row.svc.wh || 0).toFixed(1);
       tr.innerHTML =
-        '<td class="svc-name">' + info.label + '</td>' +
-        '<td class="svc-count">' + (svc.count || 0) + 'x</td>' +
-        '<td class="svc-wh ' + ((svc.wh || 0) > 10 ? 'high' : '') + '">' + whVal + ' Wh</td>' +
-        '<td class="svc-time">' + ((svc.timeSpentMs || 0) > 0 ? formatTime(svc.timeSpentMs) : "-") + '</td>';
+        '<td class="svc-name">' + row.info.label + '</td>' +
+        '<td class="svc-count">' + (row.svc.count || 0) + 'x</td>' +
+        '<td class="svc-wh ' + ((row.svc.wh || 0) > 10 ? 'high' : '') + '">' + whVal + ' Wh</td>' +
+        '<td class="svc-time">' + ((row.svc.timeSpentMs || 0) > 0 ? formatTime(row.svc.timeSpentMs) : "-") + '</td>';
       table.appendChild(tr);
     }
 
-    if (todayData.requests && todayData.requests.length > 0) {
-      var last = todayData.requests[todayData.requests.length - 1];
-      if (last.service !== "google") {
-        document.getElementById("lastPromptSection").style.display = "block";
-        document.getElementById("lastPromptText").textContent = last.promptPreview || "-";
-        var svcLabel = SERVICES[last.service] ? SERVICES[last.service].label : last.service;
-        var metaEl = document.getElementById("lastPromptMeta");
-        var pTok = last.promptTokens || 0;
-        var rTok = last.responseTokens || 0;
-        var est = last.realTokens ? "" : "~"; // ~ = estimated, no prefix = real
-        metaEl.innerHTML =
-          '<span class="token-badge-in">&#8593; IN ' + est + pTok + '</span>' +
-          '<span class="token-badge-out">&#8595; OUT ' + est + rTok + '</span>' +
-          '<span class="token-wh">' + (last.wh || 0) + ' Wh</span>';
-      }
+    var nonGoogleReqs = (todayData.requests || []).filter(function(r) { return r.service !== "google"; });
+    var promptTextEl = document.getElementById("lastPromptText");
+    var metaEl = document.getElementById("lastPromptMeta");
+    if (nonGoogleReqs.length > 0) {
+      var last = nonGoogleReqs[nonGoogleReqs.length - 1];
+      promptTextEl.className = "last-prompt-text";
+      promptTextEl.textContent = last.promptPreview || "-";
+      var pTok = last.promptTokens || 0;
+      var rTok = last.responseTokens || 0;
+      var est = last.realTokens ? "" : "~"; // ~ = estimated, no prefix = real
+      metaEl.innerHTML =
+        '<span class="token-badge-in">&#8593; IN ' + est + pTok + '</span>' +
+        '<span class="token-badge-out">&#8595; OUT ' + est + rTok + '</span>' +
+        '<span class="token-wh">' + (last.wh || 0).toFixed(2) + ' Wh</span>';
+    } else {
+      promptTextEl.className = "last-prompt-text lp-waiting";
+      promptTextEl.textContent = _("lastPromptWaiting");
+      metaEl.innerHTML = "";
     }
 
   });

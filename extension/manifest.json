@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "3.7.1",
+  "version": "3.8.0",
   "description": "__MSG_appDesc__",
   "default_locale": "en",
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "notifications",
     "idle"
   ],

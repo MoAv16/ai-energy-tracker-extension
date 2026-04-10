@@ -96,13 +96,17 @@ document.getElementById("btnDevTest").addEventListener("click", function() {
 document.getElementById("btnClearAll").addEventListener("click", function() {
   if (!confirm(_("confirmClearData"))) return;
 
-  chrome.storage.local.get("settings", function(data) {
+  chrome.storage.local.get(["settings", "_fsConnected"], function(data) {
     var settings = data.settings;
+    var fsConnected = data._fsConnected;
     chrome.storage.local.clear(function() {
-      if (settings) {
-        chrome.storage.local.set({ settings: settings });
-      }
-      alert(_("clearedData"));
+      var restore = {};
+      if (settings)     restore.settings     = settings;
+      if (fsConnected)  restore._fsConnected = fsConnected;
+      if (Object.keys(restore).length) chrome.storage.local.set(restore);
+      chrome.runtime.sendMessage({ type: 'clear-fs-data' }, function() {
+        alert(_("clearedData"));
+      });
     });
   });
 });

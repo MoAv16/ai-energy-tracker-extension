@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html data-i18n-title="dashTitle">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Energy Monitor</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #111827;
+      --bg2:       #1f2937;
+      --bg3:       #0d1117;
+      --border:    rgba(255,255,255,0.07);
+      --border-hi: rgba(255,255,255,0.13);
+      --accent:    #10b981;
+      --accent-dim:rgba(16,185,129,0.1);
+      --text:      #d1d5db;
+      --text-hi:   #f9fafb;
+      --text-dim:  #6b7280;
+      --text-mid:  #9ca3af;
+      --mono:      ui-monospace, 'SF Mono', Consolas, monospace;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Nav ─────────────────────────────────── */
+    .nav {
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-brand {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-hi);
+      letter-spacing: -0.2px;
+    }
+
+    .nav-sep {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+    }
+
+    .nav-page {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .nav-date {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ── Range ───────────────────────────────── */
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 16px 32px 0;
+    }
+
+    .range-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 14px;
+      border-radius: 6px;
+      font: 500 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .range-btn:hover {
+      border-color: var(--border-hi);
+      color: var(--text);
+    }
+
+    .range-btn.active {
+      background: var(--accent-dim);
+      border-color: rgba(16,185,129,0.3);
+      color: var(--accent);
+    }
+
+    /* ── Layout ──────────────────────────────── */
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px 32px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Hero ────────────────────────────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      animation: fadeUp 0.3s ease both;
+    }
+
+    .hero-cell {
+      background: var(--bg2);
+      padding: 20px 24px;
+      transition: background 0.15s;
+    }
+
+    .hero-cell:hover { background: #263548; }
+
+    .hero-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-mid);
+      margin-bottom: 10px;
+    }
+
+    .hero-val {
+      font-family: var(--mono);
+      font-size: 32px;
+      font-weight: 600;
+      color: var(--text-hi);
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+
+    .hero-unit {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+      margin-left: 4px;
+    }
+
+    .hero-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 6px;
+    }
+
+    @media (max-width: 720px) {
+      .hero { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── Section label ───────────────────────── */
+    .section-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-mid);
+      margin-bottom: 12px;
+    }
+
+    /* ── Panel ───────────────────────────────── */
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 22px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Chart ───────────────────────────────── */
+    .chart-wrap {
+      position: relative;
+      height: 180px;
+    }
+
+    .chart-wrap.tall { height: 160px; }
+
+    /* ── Service table ────────────────────────── */
+    .svc-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .svc-table tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .svc-table tr:last-child { border-bottom: none; }
+
+    .svc-table td {
+      padding: 8px 0;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+
+    .svc-color-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .svc-name-cell { color: var(--text); font-weight: 500; }
+
+    .svc-bar-cell { padding: 8px 12px; }
+
+    .svc-bar-bg {
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .svc-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 0%;
+    }
+
+    .svc-wh-cell {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-hi);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .svc-count-cell {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: right;
+      padding-left: 16px;
+      white-space: nowrap;
+    }
+
+    /* ── Request log ──────────────────────────── */
+    .req-log {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      overflow: hidden;
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+
+    .req-row {
+      display: grid;
+      grid-template-columns: 70px 1fr 56px 48px;
+      gap: 12px;
+      align-items: center;
+      background: var(--bg2);
+      padding: 8px 12px;
+      transition: background 0.12s;
+    }
+
+    .req-row:hover { background: #263548; }
+
+    .req-svc {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-mid);
+    }
+
+    .req-preview {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .req-wh {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-hi);
+      text-align: right;
+    }
+
+    .req-time {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: right;
+    }
+
+    /* ── Empty ────────────────────────────────── */
+    .empty {
+      padding: 40px 0;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    /* ── Footer ───────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 12px;
+      font-size: 11px;
+      color: var(--text-dim);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Export ──────────────────────────────── */
+    .export-btn {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 5px 14px;
+      border-radius: 6px;
+      font: 500 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .export-btn:hover {
+      border-color: var(--border-hi);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-left">
+      <span class="nav-brand" data-i18n="navBrand">AI Energy Monitor</span>
+      <div class="nav-sep"></div>
+      <span class="nav-page" data-i18n="dashPage">Dashboard</span>
+    </div>
+    <span class="nav-date" id="navDate"></span>
+  </nav>
+
+  <div class="range-row">
+    <button class="range-btn active" data-days="7">7d</button>
+    <button class="range-btn" data-days="30">30d</button>
+    <button class="range-btn" data-days="90">90d</button>
+    <button class="export-btn" id="btnExportCsv" data-i18n="dashExportCsv">CSV exportieren</button>
+  </div>
+
+  <div class="page">
+
+    <!-- Hero stats -->
+    <div class="hero">
+      <div class="hero-cell">
+        <div class="hero-label" data-i18n="dashToday">Today</div>
+        <div><span class="hero-val" id="statToday">—</span><span class="hero-unit">Wh</span></div>
+        <div class="hero-sub" id="subToday">&nbsp;</div>
+      </div>
+      <div class="hero-cell">
+        <div class="hero-label" data-i18n="dashPeriodTotal">Period total</div>
+        <div><span class="hero-val" id="statPeriod">—</span><span class="hero-unit">Wh</span></div>
+        <div class="hero-sub" id="subPeriod">&nbsp;</div>
+      </div>
+      <div class="hero-cell">
+        <div class="hero-label" data-i18n="dashRequests">Requests</div>
+        <div><span class="hero-val" id="statReqs">—</span></div>
+        <div class="hero-sub" id="subReqs">&nbsp;</div>
+      </div>
+      <div class="hero-cell">
+        <div class="hero-label" data-i18n="dashCo2">CO₂ equiv.</div>
+        <div><span class="hero-val" id="statCo2">—</span><span class="hero-unit">g</span></div>
+        <div class="hero-sub" data-i18n="dashCo2Note">at 380 g/kWh</div>
+      </div>
+    </div>
+
+    <!-- Trend + Donut -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-label" data-i18n="dashEnergyPerDay">Energy per day (Wh)</div>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="section-label" data-i18n="dashByService">By service</div>
+        <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Stacked bar -->
+    <div class="panel">
+      <div class="section-label" data-i18n="dashDailyBreakdown">Daily breakdown</div>
+      <div class="chart-wrap tall"><canvas id="stackChart"></canvas></div>
+    </div>
+
+    <!-- Service table + Request log -->
+    <div class="two-col">
+      <div class="panel">
+        <div class="section-label" data-i18n="dashRecentRequests">Recent requests</div>
+        <div class="req-log" id="reqLog"></div>
+      </div>
+      <div class="panel">
+        <div class="section-label" data-i18n="dashServiceBreakdown">Service breakdown</div>
+        <table class="svc-table" id="svcTable"></table>
+      </div>
+    </div>
+
+  </div>
+
+  <footer data-i18n="dashFooter">All data stored locally · AI Energy Monitor</footer>
+
+  <script src="lib/chart.min.js"></script>
+  <script src="i18n.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
