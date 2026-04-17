@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title data-i18n-title="devtestTitle">AI Energy Monitor - Test Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    a, a:visited, a:hover, a:active { color: #059669; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    :focus-visible {
+      outline: 2px solid rgba(16,185,129,0.5);
+      outline-offset: 2px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f3ed;
+      color: #2c2318;
+      padding: 28px 24px;
+      max-width: 800px;
+      margin: 0 auto;
+      font-size: 13px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .intro {
+      font-size: 13px;
+      color: #7a6a58;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .section {
+      background: #fefcf8;
+      border: 1px solid rgba(160,130,90,0.18);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      color: #7a6a58;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(160,130,90,0.12);
+      font-size: 13px;
+    }
+
+    .row:last-child { border-bottom: none; }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .tag.ok   { background: rgba(16,185,129,0.12); color: #065f46; }
+    .tag.fail { background: rgba(220,38,38,0.1);   color: #991b1b; }
+    .tag.wait { background: rgba(217,119,6,0.1);   color: #92400e; }
+
+    .btn {
+      padding: 8px 16px;
+      background: #10b981;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      cursor: pointer;
+      margin: 3px;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #059669; }
+
+    .btn.green { background: #10b981; }
+    .btn.green:hover { background: #059669; }
+
+    .btn.red { background: #dc2626; }
+    .btn.red:hover { background: #b91c1c; }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: #7a6a58;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s, background 0.15s;
+    }
+    .refresh-btn:hover {
+      background: rgba(160,130,90,0.1);
+      color: #2c2318;
+    }
+
+    .btn.grey {
+      background: #ede7dc;
+      color: #5a4c3c;
+      border: 1px solid rgba(160,130,90,0.22);
+    }
+    .btn.grey:hover { background: #e4ddd1; color: #2c2318; }
+
+    .result {
+      margin-top: 10px;
+      padding: 12px;
+      background: #ede7dc;
+      color: #2c2318;
+      font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(160,130,90,0.18);
+      min-height: 44px;
+      max-height: 250px;
+      overflow: auto;
+    }
+
+    pre {
+      background: #ede7dc;
+      color: #2c2318;
+      border: 1px solid rgba(160,130,90,0.18);
+      padding: 12px;
+      border-radius: 6px;
+      font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+      font-size: 11px;
+      max-height: 200px;
+      overflow: auto;
+      margin-top: 10px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: default;
+    }
+
+    .section-header.collapsible {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .collapse-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(160,130,90,0.2);
+      background: rgba(255,255,255,0.6);
+      flex-shrink: 0;
+      position: relative;
+      transition: transform 0.18s ease;
+      margin-top: 1px;
+    }
+
+    .collapse-icon::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid #7a6a58;
+      border-bottom: 2px solid #7a6a58;
+      transform: translate(-50%, -65%) rotate(45deg);
+    }
+
+    .section.is-collapsed .collapse-icon {
+      transform: rotate(180deg);
+    }
+
+    .collapse-body {
+      overflow: hidden;
+      max-height: 3000px;
+      opacity: 1;
+      transition: max-height 0.28s ease, opacity 0.18s ease, margin-top 0.18s ease;
+      margin-top: 14px;
+    }
+
+    .section.is-collapsed .collapse-body {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 data-i18n="devtestHeading">Test Center</h1>
+  <p class="intro" data-i18n="devtestIntro">Here you can check if the extension is working correctly. Work through the sections from top to bottom.</p>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Extension-Status</div>
+        <div class="section-desc" style="margin-bottom:0;" data-i18n="section1Desc">Checks if the extension is correctly loaded in your browser and if all parts can communicate with each other.</div>
+      </div>
+      <button id="btnStatus" class="refresh-btn" title="Neu prüfen">
+        <svg id="refreshIcon" width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15.5 9A6.5 6.5 0 1 1 9 2.5c1.8 0 3.42.73 4.6 1.9L11.5 6.5H16V2l-1.76 1.76A8 8 0 1 0 17 9h-1.5z" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;">
+      <div style="flex:1;background:rgba(160,130,90,0.06);border:1px solid rgba(160,130,90,0.15);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:#7a6a58;margin-bottom:6px;" data-i18n="extensionLoaded">Extension loaded</div>
+        <span class="tag wait" id="s1" data-i18n="notChecked">—</span>
+      </div>
+      <div style="flex:1;background:rgba(160,130,90,0.06);border:1px solid rgba(160,130,90,0.15);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:#7a6a58;margin-bottom:6px;" data-i18n="storageReachable">Storage reachable</div>
+        <span class="tag wait" id="s2" data-i18n="notChecked">—</span>
+      </div>
+      <div style="flex:1;background:rgba(160,130,90,0.06);border:1px solid rgba(160,130,90,0.15);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;color:#7a6a58;margin-bottom:6px;" data-i18n="backgroundActive">Background service active</div>
+        <span class="tag wait" id="s3" data-i18n="notChecked">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title" data-i18n="section2Title">Tracking-Test</div>
+        <div class="section-desc" style="margin-bottom:0;" data-i18n="section2Desc">Simulates an AI query without actually opening the page. Click on a service – if a confirmation appears in the result field below, tracking works.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn green" id="simChatgpt" data-service="chatgpt" data-prompt="What is the capital of France?">ChatGPT</button>
+      <button class="btn green" id="simCopilot" data-service="copilot" data-prompt="Write Python Fibonacci">Copilot</button>
+      <button class="btn green" id="simGemini" data-service="gemini" data-prompt="Explain quantum computing">Gemini</button>
+      <button class="btn green" id="simClaude" data-service="claude" data-prompt="Create a project plan">Claude</button>
+      <button class="btn green" id="simGoogle" data-service="google" data-prompt="weather today">Google</button>
+    </div>
+    <div class="result" id="simResult" data-i18n="simPlaceholder">Click a service above...</div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title" data-i18n="section3Title">Live-Erkennung</div>
+        <div class="section-desc" style="margin-bottom:0;" data-i18n="section3Desc">Keep this window open and open a new tab with e.g. ChatGPT or Google. If you type something and submit, a message should automatically appear below.</div>
+      </div>
+    </div>
+    <div class="result" id="liveResult" style="margin-top:14px;" data-i18n="liveWaiting">Waiting... open an AI service in another tab now</div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Testdaten</div>
+        <div class="section-desc" style="margin-bottom:0;">Erzeugt zufällige Testdaten für 7, 30 oder 90 Tage, damit Popup und Dashboard mit Inhalten getestet werden können – ohne echte Daten sammeln zu müssen.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn" id="btnSimWeek">7 Tage</button>
+      <button class="btn green" id="btnGen30Days">30 Tage</button>
+      <button class="btn green" id="btnGenHighConsumption">90 Tage</button>
+      <button class="btn red" id="btnClear" data-i18n="deleteAllData">Delete all data</button>
+    </div>
+    <div class="result" id="dataResult" data-i18n="nothingGenerated">Nothing generated yet</div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title" data-i18n="section5Title">Rohdaten</div>
+        <div class="section-desc" style="margin-bottom:0;" data-i18n="section5Desc">Shows all stored extension data in raw format (JSON). Useful to check what exactly is being saved.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn" id="btnRead" data-i18n="showData">Show data</button>
+    </div>
+    <pre id="storageOut" data-i18n="notLoaded">Not loaded yet</pre>
+  </div>
+
+  <div class="section is-collapsed" id="urlCheckSection">
+    <div class="section-header collapsible" id="urlCheckToggle">
+      <div>
+        <div class="section-title">URL-Erkennung</div>
+        <div class="section-desc" style="margin-bottom:0;" data-i18n="section6Desc">Checks for each registered AI service whether the URLs are reachable and correctly detected.</div>
+      </div>
+      <span class="collapse-icon"></span>
+    </div>
+    <div class="collapse-body">
+      <button class="btn" id="btnCheckAll" data-i18n="checkAllUrls">Check all URLs</button>
+      <div style="margin-top:12px;" id="urlCheckList"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Entwickleroptionen</div>
+        <div class="section-desc" style="margin-bottom:0;">Prüft, ob der beim Onboarding verbundene Ordner vollständig und korrekt angelegt wurde.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn" id="btnValidateExtensionFolder">Ordnerpfad prüfen</button>
+      <button class="btn grey" id="btnRepairExtensionFolder" style="display:none;">Reparieren</button>
+    </div>
+    <div id="folderValidationResult" style="margin-top:12px;font-size:13px;line-height:1.5;color:#7a6a58;"></div>
+
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(160,130,90,0.14);">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9c8c7a;margin-bottom:10px;">Build</div>
+      <div style="display:flex;align-items:stretch;border:1px solid rgba(160,130,90,0.22);border-radius:8px;overflow:hidden;font-size:12px;font-weight:600;">
+        <button id="modeProduction" type="button" style="flex:1;padding:10px 14px;border:none;cursor:pointer;transition:background 0.15s,color 0.15s;text-align:center;line-height:1.3;">
+          Production<br><span style="font-size:10px;font-weight:400;opacity:0.8;">Bestehendes Verhalten</span>
+        </button>
+        <div style="width:1px;background:rgba(160,130,90,0.22);"></div>
+        <button id="modeDevelopment" type="button" style="flex:1;padding:10px 14px;border:none;cursor:pointer;transition:background 0.15s,color 0.15s;text-align:center;line-height:1.3;">
+          Development<br><span style="font-size:10px;font-weight:400;opacity:0.8;">Neue Strategy Maps</span>
+        </button>
+      </div>
+      <input type="checkbox" id="toggleNewStrategies" style="display:none;">
+    </div>
+  </div>
+
+  <script src="../../shared/i18n.js"></script>
+  <script src="devtest.js"></script>
+</body>
+</html>

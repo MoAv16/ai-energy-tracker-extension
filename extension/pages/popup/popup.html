@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-left">
+      <div class="status-orb" id="statusOrb"></div>
+      <span class="nav-brand" data-i18n="navBrand">AI Energy Monitor</span>
+    </div>
+    <span class="status-label" id="statusLabel"></span>
+  </nav>
+
+  <!-- Onboarding (wird ausgeblendet sobald Ordner verbunden) -->
+  <div id="onboarding" class="onboarding hidden">
+    <div class="ob-icon">📂</div>
+    <div class="ob-title" data-i18n="obTitle">Speicherort einrichten</div>
+    <div class="ob-desc" data-i18n="obDesc">Wähle deinen Dokumente-Ordner – der Ordner 'KI Energie-Monitor' wird automatisch darin angelegt.</div>
+    <button id="btnChooseFolder" class="btn btn-dashboard" data-i18n="obChooseFolder">Dokumente öffnen</button>
+    <div class="ob-note" data-i18n="obNote">Der Ordner 'KI Energie-Monitor' wird automatisch erstellt</div>
+    <div class="ob-error hidden" id="obError" data-i18n="obError">Kein Ordner ausgewählt. Bitte versuche es erneut.</div>
+  </div>
+
+  <div id="mainContent" class="container hidden">
+
+    <!-- Daily total -->
+    <div class="stat-main">
+      <div class="stat-num-wrap">
+        <span class="stat-num" id="todayWh">0.0</span>
+        <span class="stat-unit">Wh</span>
+      </div>
+      <span class="stat-sub" data-i18n="whToday">today</span>
+    </div>
+
+    <div class="xp-popup-panel">
+      <img id="popupAchievementImg" class="xp-achievement-img" src="" alt="">
+      <div class="xp-popup-content">
+        <div class="xp-popup-header">
+          <span class="section-label">XP-Fortschritt</span>
+          <span class="xp-popup-level" id="popupXpLevel">Level 0</span>
+        </div>
+        <div class="xp-popup-row">
+          <span class="xp-popup-total" id="popupXpTotal">0 XP</span>
+          <span class="xp-popup-next" id="popupXpNext">Noch 100 XP</span>
+        </div>
+        <div class="xp-popup-track">
+          <div class="xp-popup-fill" id="popupXpFill"></div>
+        </div>
+        <div class="xp-popup-meta" id="popupXpMeta">0 / 100 XP bis Level 1</div>
+      </div>
+    </div>
+
+    <!-- Week chart -->
+    <div class="week-section">
+      <div class="week-header">
+        <span class="section-label" data-i18n="currentWeek">Current week</span>
+        <span class="week-total"><strong id="weekWh">0</strong> Wh</span>
+      </div>
+      <div class="week-days" id="weekDays"></div>
+      <div class="chart-wrap">
+        <canvas id="weekChart" height="48" style="width:100%;display:block;margin-top:3px;cursor:pointer;"></canvas>
+        <div class="chart-tooltip hidden" id="chartTooltip"></div>
+      </div>
+      <div class="chart-detail hidden" id="chartDetail">
+        <div class="chart-tabs-row">
+          <div class="chart-tabs" id="chartTabs"></div>
+          <button class="chart-detail-close" id="chartDetailClose">×</button>
+        </div>
+        <div class="chart-detail-body" id="chartDetailBody"></div>
+      </div>
+    </div>
+
+    <!-- No-AI Toggle -->
+    <div class="quick-toggle-row">
+      <div class="quick-toggle-info">
+        <span class="quick-toggle-label">Google ohne KI</span>
+        <span class="quick-toggle-sub">Schicke Suchanfragen ohne KI-Modus ab</span>
+      </div>
+      <label class="toggle"><input type="checkbox" id="toggleNoAI"><span class="slider"></span></label>
+    </div>
+
+    <div class="quick-toggle-row">
+      <div class="quick-toggle-info">
+        <span class="quick-toggle-label">Token-Spar-Modus</span>
+        <span class="quick-toggle-sub">Spare bis zu 80% an Output-Tokens</span>
+      </div>
+      <label class="toggle"><input type="checkbox" id="toggleTokenSaver"><span class="slider"></span></label>
+    </div>
+
+    <!-- Service breakdown -->
+    <div class="services-panel">
+      <div class="services-header">
+        <span class="section-label" id="servicesLabel">Tages-Übersicht</span>
+        <div class="period-tabs">
+          <button class="period-tab active" data-period="day">Tag</button>
+          <button class="period-tab" data-period="week">Woche</button>
+          <button class="period-tab" data-period="month">Monat</button>
+        </div>
+      </div>
+      <table class="breakdown" id="serviceList"></table>
+    </div>
+
+    <!-- Dashboards -->
+    <div class="btn-row">
+      <button id="openDashboard" class="btn btn-dashboard" style="flex:1">Mein Dashboard</button>
+      <button id="openCompanyDashboard" class="btn btn-dashboard btn-dashboard-company" style="flex:1">Unternehmens-Dashboard</button>
+    </div>
+
+    <!-- Settings -->
+    <div class="btn-row">
+      <button id="openDevTest" class="btn btn-settings" data-i18n="settingsBtn">Settings</button>
+    </div>
+
+  </div>
+
+  <script src="../../shared/i18n.js"></script>
+  <script src="popup.js"></script>
+
+</body>
+</html>

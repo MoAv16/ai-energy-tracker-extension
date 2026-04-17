@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title data-i18n-title="settingsTitle">AI Energy Monitor - Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    a, a:visited, a:hover, a:active {
+      color: #059669;
+      text-decoration: none;
+    }
+
+    a:hover { text-decoration: underline; }
+
+    :focus-visible {
+      outline: 2px solid rgba(16,185,129,0.5);
+      outline-offset: 2px;
+    }
+
+    html {
+      background: radial-gradient(
+        ellipse 100% 55% at 50% var(--scroll-light, 8%),
+        #fdf6ec 0%,
+        #f7f3ed 55%,
+        #efe8de 100%
+      );
+      background-attachment: fixed;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      color: #2c2318;
+      padding: 36px 44px 56px;
+      max-width: 1100px;
+      margin: 0 auto;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      margin-bottom: 28px;
+    }
+
+    .page-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .page-header-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-mid, #7a6a58);
+      background: rgba(255,255,255,0.45);
+      border: 1px solid rgba(160,130,90,0.22);
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.7);
+      color: #2c2318;
+      border-color: rgba(160,130,90,0.38);
+    }
+
+    .nav-btn.accent {
+      color: #10b981;
+      background: rgba(16,185,129,0.08);
+      border-color: rgba(16,185,129,0.32);
+      font-weight: 600;
+    }
+    .nav-btn.accent:hover {
+      background: rgba(16,185,129,0.15);
+      border-color: rgba(16,185,129,0.5);
+    }
+
+    /* ── Two-column grid ── */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .settings-col { display: flex; flex-direction: column; gap: 20px; }
+
+    @media (max-width: 720px) {
+      .settings-grid { grid-template-columns: 1fr; }
+      body { padding: 24px 20px 40px; }
+      .section { padding: 18px; }
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+      letter-spacing: -0.3px;
+    }
+
+    .intro {
+      font-size: 13px;
+      color: #7a6a58;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* ── Section card ── */
+    .section {
+      background: #fefcf8;
+      border: 1px solid rgba(160,130,90,0.18);
+      border-radius: 10px;
+      padding: 22px 24px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 4px;
+    }
+
+    .section-desc {
+      font-size: 12px;
+      color: #7a6a58;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Service list ── */
+    .service-list { list-style: none; }
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 2px;
+      border-bottom: 1px solid rgba(160,130,90,0.12);
+    }
+
+    .service-item:last-child { border-bottom: none; }
+
+    .service-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .service-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2c2318;
+    }
+
+    .service-url {
+      font-size: 11px;
+      color: #9c8c7a;
+      margin-top: 1px;
+    }
+
+    .service-tag {
+      font-size: 10px;
+      font-weight: 600;
+      color: #059669;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    /* ── Toggle ── */
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .toggle .slider {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #d6cbbf;
+      border-radius: 22px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .toggle .slider:before {
+      content: "";
+      position: absolute;
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    .toggle input:checked + .slider { background: #10b981; }
+    .toggle input:checked + .slider:before { transform: translateX(18px); }
+
+    /* ── Saved message ── */
+    .saved-msg {
+      display: none;
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    /* ── Sub-section ── */
+    .sub-section {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(160,130,90,0.14);
+    }
+
+    .sub-section:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+    .sub-section-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+
+    .sub-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1008;
+    }
+
+    .sub-section-desc {
+      font-size: 11px;
+      color: #7a6a58;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .sub-section-note {
+      font-size: 11px;
+      color: #9c8c7a;
+      background: rgba(160,130,90,0.08);
+      border: 1px solid rgba(160,130,90,0.15);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .water-sub-section {
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+    }
+
+    .section-toggle {
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .section-toggle-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .section-collapse-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 1px solid rgba(160,130,90,0.18);
+      background: rgba(255,255,255,0.65);
+      flex-shrink: 0;
+      position: relative;
+      transition: transform 0.18s ease;
+    }
+
+    .section-collapse-icon::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid #7a6a58;
+      border-bottom: 2px solid #7a6a58;
+      transform: translate(-50%, -62%) rotate(45deg);
+    }
+
+    .section.is-collapsed .section-collapse-icon {
+      transform: rotate(180deg);
+    }
+
+    .section-body {
+      overflow: hidden;
+      max-height: 1200px;
+      opacity: 1;
+      margin-top: 14px;
+      transition: max-height 0.28s ease, opacity 0.18s ease, margin-top 0.18s ease;
+    }
+
+    .section.is-collapsed .section-body {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      pointer-events: none;
+    }
+
+    /* ── Profile list ── */
+    .profile-list { list-style: none; }
+
+    .profile-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 2px;
+      border-bottom: 1px solid rgba(160,130,90,0.12);
+      cursor: pointer;
+    }
+
+    .profile-item:last-child { border-bottom: none; }
+
+    .profile-item input[type="radio"] {
+      margin-top: 3px;
+      accent-color: #10b981;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .profile-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .profile-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2c2318;
+    }
+
+    .profile-meta {
+      font-size: 11px;
+      color: #7a6a58;
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+
+    .profile-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      color: #059669;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .profile-source {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 10px;
+    }
+
+    .calc-profile-box {
+      border: 1px solid rgba(160,130,90,0.14);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.5);
+      padding: 12px 14px;
+    }
+
+    .calc-profile-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .calc-profile-head input[type="radio"] {
+      margin-top: 3px;
+      accent-color: #10b981;
+      flex-shrink: 0;
+    }
+
+    .calc-profile-summary {
+      font-size: 11px;
+      color: #7a6a58;
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .calc-customize-btn {
+      margin-top: 12px;
+    }
+
+    .calc-advanced {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(160,130,90,0.14);
+      display: none;
+    }
+
+    .calc-advanced.is-open {
+      display: block;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #10b981;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 8px;
+      transition: background 0.15s;
+    }
+
+    .btn:hover { background: #059669; }
+
+    .btn.grey {
+      background: #ede7dc;
+      color: #5a4c3c;
+      border: 1px solid rgba(160,130,90,0.22);
+    }
+
+    .btn.grey:hover {
+      background: #e4ddd1;
+      color: #2c2318;
+    }
+
+    /* ── Decorative background pieces ── */
+    .bg-pieces {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-pieces img {
+      position: absolute;
+      user-select: none;
+      -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 72%);
+      mask-image: radial-gradient(ellipse at center, black 25%, transparent 72%);
+    }
+
+    body > *:not(.bg-pieces) { position: relative; z-index: 1; }
+
+    /* ── Link row ── */
+    .link-row { margin-top: 12px; }
+
+    .link-row a {
+      color: #059669;
+      font-size: 12px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .link-row a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Decorative background pieces -->
+  <div class="bg-pieces" aria-hidden="true">
+    <!-- ── Ecken ── -->
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:270px; top:-65px;    right:-55px;   transform:rotate(22deg);  filter:saturate(0.5) opacity(0.22) sepia(0.1)  drop-shadow(0 12px 28px rgba(100,140,80,0.18));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:210px; top:-35px;    left:-25px;    transform:rotate(-14deg); filter:saturate(0.45) opacity(0.19) sepia(0.12) drop-shadow(0 8px 20px rgba(80,120,60,0.15));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:230px; bottom:-55px; left:-55px;    transform:rotate(-10deg); filter:saturate(0.5) opacity(0.20) sepia(0.1)  drop-shadow(0 10px 24px rgba(60,100,50,0.16));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:180px; bottom:-25px; right:-15px;   transform:rotate(-20deg); filter:saturate(0.45) opacity(0.19) sepia(0.1)  drop-shadow(0 8px 20px rgba(80,120,60,0.14));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:155px; top:-30px;    left:42%;      transform:rotate(8deg);   filter:saturate(0.42) opacity(0.16) sepia(0.1)  drop-shadow(0 8px 20px rgba(60,100,50,0.13));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:140px; bottom:-40px; left:55%;      transform:rotate(-16deg); filter:saturate(0.4) opacity(0.15) sepia(0.1)   drop-shadow(0 8px 18px rgba(100,140,80,0.12));">
+
+    <!-- ── oben ── -->
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:120px; top:25px;     left:38%;      transform:rotate(6deg);   filter:saturate(0.35) opacity(0.12) sepia(0.08) drop-shadow(0 4px 12px rgba(60,100,50,0.10));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:125px; top:10px;     left:22%;      transform:rotate(-18deg); filter:saturate(0.4) opacity(0.12) sepia(0.1)  drop-shadow(0 4px 10px rgba(100,140,80,0.10));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:135px; top:15px;     right:22%;     transform:rotate(12deg);  filter:saturate(0.38) opacity(0.13) sepia(0.1)  drop-shadow(0 4px 12px rgba(80,120,60,0.10));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:110px; top:55px;     left:55%;      transform:rotate(28deg);  filter:saturate(0.32) opacity(0.10) sepia(0.1)  drop-shadow(0 3px 8px rgba(100,140,80,0.08));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:98px;  top:40px;     right:38%;     transform:rotate(-22deg); filter:saturate(0.3) opacity(0.10) sepia(0.12)  drop-shadow(0 3px 8px rgba(80,120,60,0.08));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:120px; top:30px;     left:12%;      transform:rotate(-30deg); filter:saturate(0.33) opacity(0.10) sepia(0.08) drop-shadow(0 4px 10px rgba(60,100,50,0.08));">
+
+    <!-- ── Mitte links ── -->
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:140px; top:38%;      left:25px;     transform:rotate(-25deg); filter:saturate(0.45) opacity(0.15) sepia(0.1)  drop-shadow(0 6px 16px rgba(100,140,80,0.12));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:115px; top:58%;      left:12%;      transform:rotate(48deg);  filter:saturate(0.4) opacity(0.13) sepia(0.1)  drop-shadow(0 4px 12px rgba(80,120,60,0.10));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:108px; top:25%;      left:8%;       transform:rotate(15deg);  filter:saturate(0.35) opacity(0.11) sepia(0.1)  drop-shadow(0 3px 8px rgba(60,100,50,0.09));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:90px;  top:72%;      left:3%;       transform:rotate(-38deg); filter:saturate(0.32) opacity(0.10) sepia(0.1)  drop-shadow(0 3px 8px rgba(80,120,60,0.08));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:100px; top:46%;      left:18%;      transform:rotate(55deg);  filter:saturate(0.3) opacity(0.10) sepia(0.12)  drop-shadow(0 3px 8px rgba(100,140,80,0.08));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:85px;  top:82%;      left:9%;       transform:rotate(20deg);  filter:saturate(0.3) opacity(0.09) sepia(0.1)   drop-shadow(0 3px 6px rgba(60,100,50,0.07));">
+
+    <!-- ── Mitte rechts ── -->
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:145px; top:30%;      right:18px;    transform:rotate(30deg);  filter:saturate(0.5) opacity(0.16) sepia(0.1)  drop-shadow(0 6px 18px rgba(80,120,60,0.13));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:130px; top:16%;      right:75px;    transform:rotate(18deg);  filter:saturate(0.4) opacity(0.13) sepia(0.1)  drop-shadow(0 5px 14px rgba(60,100,50,0.10));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:100px; top:70%;      right:55px;    transform:rotate(-35deg); filter:saturate(0.35) opacity(0.11) sepia(0.1)  drop-shadow(0 3px 8px rgba(100,140,80,0.08));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:118px; top:48%;      right:10%;     transform:rotate(-18deg); filter:saturate(0.38) opacity(0.12) sepia(0.12) drop-shadow(0 4px 10px rgba(80,120,60,0.09));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:105px; top:84%;      right:8%;      transform:rotate(42deg);  filter:saturate(0.33) opacity(0.10) sepia(0.1)  drop-shadow(0 3px 8px rgba(100,140,80,0.08));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:92px;  top:60%;      right:28%;     transform:rotate(-28deg); filter:saturate(0.3) opacity(0.09) sepia(0.1)   drop-shadow(0 3px 6px rgba(60,100,50,0.07));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:80px;  top:22%;      right:40%;     transform:rotate(55deg);  filter:saturate(0.28) opacity(0.08) sepia(0.12)  drop-shadow(0 2px 6px rgba(80,120,60,0.06));">
+
+    <!-- ── Mitte (tief im Hintergrund) ── -->
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:125px; top:52%;      left:52%;      transform:rotate(-8deg);  filter:saturate(0.3) opacity(0.09) sepia(0.15)  drop-shadow(0 4px 10px rgba(60,100,50,0.08));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:100px; top:35%;      left:44%;      transform:rotate(30deg);  filter:saturate(0.3) opacity(0.09) sepia(0.12)  drop-shadow(0 3px 8px rgba(100,140,80,0.07));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:90px;  top:68%;      left:36%;      transform:rotate(-42deg); filter:saturate(0.3) opacity(0.09) sepia(0.1)   drop-shadow(0 3px 6px rgba(80,120,60,0.07));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:85px;  top:20%;      left:58%;      transform:rotate(16deg);  filter:saturate(0.28) opacity(0.08) sepia(0.1)   drop-shadow(0 2px 6px rgba(100,140,80,0.06));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:95px;  top:78%;      left:62%;      transform:rotate(-20deg); filter:saturate(0.28) opacity(0.08) sepia(0.12)  drop-shadow(0 3px 6px rgba(60,100,50,0.06));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:80px;  top:44%;      left:30%;      transform:rotate(35deg);  filter:saturate(0.25) opacity(0.07) sepia(0.1)   drop-shadow(0 2px 5px rgba(80,120,60,0.05));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:78px;  top:62%;      left:70%;      transform:rotate(-50deg); filter:saturate(0.25) opacity(0.07) sepia(0.1)   drop-shadow(0 2px 5px rgba(100,140,80,0.05));">
+
+    <!-- ── unten Mitte ── -->
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:120px; bottom:75px;  left:38%;      transform:rotate(15deg);  filter:saturate(0.4) opacity(0.13) sepia(0.12)  drop-shadow(0 4px 10px rgba(100,140,80,0.10));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:130px; bottom:120px; right:30%;     transform:rotate(-14deg); filter:saturate(0.38) opacity(0.12) sepia(0.1)  drop-shadow(0 4px 12px rgba(60,100,50,0.09));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:108px; bottom:180px; left:28%;      transform:rotate(22deg);  filter:saturate(0.38) opacity(0.11) sepia(0.1)  drop-shadow(0 3px 8px rgba(80,120,60,0.08));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:95px;  bottom:220px; right:18%;     transform:rotate(-32deg); filter:saturate(0.33) opacity(0.10) sepia(0.1)  drop-shadow(0 3px 8px rgba(80,120,60,0.07));">
+    <img src="../../assets/decorative/NeuralNetwork-piece.png" style="width:88px;  bottom:60px;  left:20%;      transform:rotate(40deg);  filter:saturate(0.3) opacity(0.09) sepia(0.12)  drop-shadow(0 3px 6px rgba(60,100,50,0.07));">
+    <img src="../../assets/decorative/Energy-piece.png"        style="width:100px; bottom:160px; left:55%;      transform:rotate(-22deg); filter:saturate(0.32) opacity(0.10) sepia(0.1)  drop-shadow(0 3px 8px rgba(100,140,80,0.08));">
+    <img src="../../assets/decorative/leaf-piece.png"          style="width:82px;  bottom:90px;  right:42%;     transform:rotate(18deg);  filter:saturate(0.28) opacity(0.08) sepia(0.1)   drop-shadow(0 2px 6px rgba(80,120,60,0.06));">
+  </div>
+
+  <div class="page-header">
+    <div class="page-header-top">
+      <h1 data-i18n="settingsHeading">Settings</h1>
+      <div class="page-header-nav">
+        <a class="nav-btn" href="../dashboard/dashboard.html">Persönliches Dashboard</a>
+        <a class="nav-btn accent" href="../company-dashboard/company-dashboard.html">Unternehmens-Dashboard</a>
+      </div>
+    </div>
+    <p class="intro" data-i18n="settingsIntro">Configure which AI services should be tracked.</p>
+  </div>
+
+  <div class="settings-grid">
+
+    <!-- ── Linke Spalte: Dienste ── -->
+    <div class="settings-col">
+
+      <div class="section">
+        <div class="section-title" data-i18n="coreServices">Core Services (always active)</div>
+        <div class="section-desc" data-i18n="coreServicesDesc">These services are always tracked.</div>
+        <ul class="service-list">
+          <li class="service-item"><div class="service-info"><span class="service-name">ChatGPT</span><span class="service-url">chatgpt.com</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+          <li class="service-item"><div class="service-info"><span class="service-name">Google Gemini</span><span class="service-url">gemini.google.com</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+          <li class="service-item"><div class="service-info"><span class="service-name">Perplexity</span><span class="service-url">perplexity.ai</span></div><span class="service-tag" data-i18n="activeTag">ACTIVE</span></li>
+          <li class="service-item">
+            <div class="service-info">
+              <span class="service-name">Google AI-Suche unterdrücken</span>
+              <span class="service-url">Hängt „ -ai" an jede Google-Suchanfrage und unterdrückt KI-Resultate</span>
+            </div>
+            <label class="toggle"><input type="checkbox" id="toggleGoogleNoAI"><span class="slider"></span></label>
+          </li>
+          <li class="service-item">
+            <div class="service-info">
+              <span class="service-name">Token-Spar-Modus</span>
+              <span class="service-url">Hängt bei ChatGPT zwei Leerzeilen plus den unten konfigurierten Prompt an</span>
+            </div>
+            <label class="toggle"><input type="checkbox" id="toggleTokenSaver"><span class="slider"></span></label>
+          </li>
+          <li class="service-item" style="flex-direction:column; align-items:flex-start; gap:8px; padding-top:8px;">
+            <div id="tokenSaverPromptDisplay" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <span id="tokenSaverPromptText" style="font-size:11px; color:#7a6a58; font-style:italic; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+              <button id="btnCustomizeTokenSaver" type="button" class="btn" style="margin-top:0; flex-shrink:0; padding:5px 12px; font-size:12px;">Anpassen</button>
+            </div>
+            <div id="tokenSaverEditArea" style="display:none; width:100%;">
+              <textarea id="tokenSaverPromptInput" rows="3" style="width:100%; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:12px; color:#2c2318; background:#fefcf8; border:1px solid rgba(160,130,90,0.28); border-radius:6px; padding:8px 10px; resize:vertical; line-height:1.5;"></textarea>
+              <div style="display:flex; gap:8px; margin-top:6px; align-items:center; flex-wrap:wrap;">
+                <button id="btnSaveTokenSaverPrompt" type="button" class="btn" style="margin-top:0; padding:5px 14px; font-size:12px;">Speichern</button>
+                <button id="btnResetTokenSaverPrompt" type="button" class="btn grey" style="margin-top:0; padding:5px 14px; font-size:12px;">Standard</button>
+                <button id="btnCancelTokenSaverEdit" type="button" class="btn grey" style="margin-top:0; padding:5px 14px; font-size:12px;">Abbrechen</button>
+                <span id="tokenSaverSavedMsg" style="display:none; font-size:12px; color:#10b981; font-weight:600;">Gespeichert!</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="sub-section">
+          <div class="section is-collapsed" id="optionalServicesSection">
+            <button class="section-toggle" id="optionalServicesToggle" type="button" aria-expanded="false" aria-controls="optionalServicesBody">
+              <span class="section-toggle-row">
+                <span style="min-width:0;flex:1">
+                  <span class="section-title" data-i18n="optionalServices">Optionale Dienste</span>
+                  <span class="section-desc">Zusätzliche Dienste verwalten.</span>
+                </span>
+                <span class="section-collapse-icon" aria-hidden="true"></span>
+              </span>
+            </button>
+            <div class="section-body" id="optionalServicesBody">
+            <ul class="service-list" id="optionalList">
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Microsoft Copilot</span><span class="service-url">copilot.microsoft.com</span></div>
+                <label class="toggle"><input type="checkbox" data-service="copilot" checked><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Claude</span><span class="service-url">claude.ai</span></div>
+                <label class="toggle"><input type="checkbox" data-service="claude" checked><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name" data-i18n="googleSearch">Google Search</span><span class="service-url">google.com / google.de</span></div>
+                <label class="toggle"><input type="checkbox" data-service="google" checked><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">DeepSeek</span><span class="service-url">chat.deepseek.com</span></div>
+                <label class="toggle"><input type="checkbox" data-service="deepseek"><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Grok (xAI)</span><span class="service-url">grok.com</span></div>
+                <label class="toggle"><input type="checkbox" data-service="grok"><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Meta AI</span><span class="service-url">meta.ai</span></div>
+                <label class="toggle"><input type="checkbox" data-service="meta"><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Poe</span><span class="service-url">poe.com</span></div>
+                <label class="toggle"><input type="checkbox" data-service="poe"><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">GitHub Copilot</span><span class="service-url">github.com/copilot</span></div>
+                <label class="toggle"><input type="checkbox" data-service="github-copilot"><span class="slider"></span></label>
+              </li>
+              <li class="service-item">
+                <div class="service-info"><span class="service-name">Mistral AI</span><span class="service-url">chat.mistral.ai</span></div>
+                <label class="toggle"><input type="checkbox" data-service="mistral"><span class="slider"></span></label>
+              </li>
+            </ul>
+            </div>
+            <div class="saved-msg" id="savedMsg" data-i18n="saved">Saved!</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Rechte Spalte: Profile & Tools ── -->
+    <div class="settings-col">
+
+  <div class="section">
+    <div class="section-title" data-i18n="energyProfileTitle">Calculation Basis</div>
+    <div class="section-desc" data-i18n="energyProfileDesc">Define which scientific studies are used to calculate electricity, cooling, and water consumption.</div>
+
+    <div class="calc-profile-box">
+      <div class="calc-profile-head">
+        <input type="radio" id="calcProfileStandard" name="calcProfileMode" checked>
+        <label for="calcProfileStandard" class="profile-info" style="cursor:pointer;">
+          <span class="profile-name">Standard<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+          <span class="calc-profile-summary">Strom: Jegham et al. · Kühlung: Industry Average · Google-Suche: Google (2009)</span>
+        </label>
+      </div>
+      <button class="btn calc-customize-btn" id="btnCustomizeCalculation" type="button">Anpassen</button>
+    </div>
+
+    <div class="calc-advanced" id="calculationAdvanced">
+      <!-- ⚡ Stromverbrauch -->
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title" data-i18n="energyProfileElec">Electricity Consumption</span>
+        </div>
+        <div class="sub-section-desc" data-i18n="energyProfileElecDesc">Choose which study to use as the basis for energy consumption per AI request.</div>
+        <ul class="profile-list" id="profileList">
+          <li class="profile-item">
+            <input type="radio" name="energyProfile" value="altman" id="profileAltman">
+            <label for="profileAltman" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Sam Altman / OpenAI</span>
+              <span class="profile-meta" data-i18n="profileAltmanDesc">0.34 Wh average · publicly acknowledged value (OpenAI CEO, Jun. 2025)</span>
+              <a class="profile-source" href="https://blog.samaltman.com/the-gentle-singularity" target="_blank">&#8599; blog.samaltman.com/the-gentle-singularity</a>
+            </label>
+          </li>
+          <li class="profile-item">
+            <input type="radio" name="energyProfile" value="jegham" id="profileJegham">
+            <label for="profileJegham" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Jegham et al.<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+              <span class="profile-meta" data-i18n="profileJeghamDesc">0.44 Wh average · conservative, peer-reviewed GPU measurement (arXiv:2505.09598)</span>
+              <a class="profile-source" href="https://arxiv.org/abs/2505.09598" target="_blank">&#8599; arxiv.org/abs/2505.09598</a>
+            </label>
+          </li>
+          <li class="profile-item">
+            <input type="radio" name="energyProfile" value="epoch" id="profileEpoch">
+            <label for="profileEpoch" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Epoch AI</span>
+              <span class="profile-meta" data-i18n="profileEpochDesc">0.30 Wh average · FLOP-based derivation, most conservative estimate (Feb. 2025)</span>
+              <a class="profile-source" href="https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use" target="_blank">&#8599; epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use</a>
+            </label>
+          </li>
+        </ul>
+        <div class="saved-msg" id="profileSavedMsg" data-i18n="saved">Saved!</div>
+      </div>
+
+      <!-- ❄ Kühlung (PUE) -->
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title" data-i18n="energyProfileCooling">Cooling (PUE)</span>
+        </div>
+        <div class="sub-section-desc" data-i18n="energyProfileCoolingDesc">The PUE value determines the cooling overhead of data centers. PUE 1.0 = no losses.</div>
+        <ul class="profile-list" id="pueList">
+          <li class="profile-item">
+            <input type="radio" name="pueProfile" value="hyperscale" id="pueHyper">
+            <label for="pueHyper" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Hyperscale</span>
+              <span class="profile-meta" data-i18n="profilePueHyperDesc">PUE 1.09 · Google/Azure-class – highly efficient hyperscale data centers</span>
+              <a class="profile-source" href="https://arxiv.org/abs/2508.15734" target="_blank">&#8599; Google (arXiv:2508.15734, Aug. 2025)</a>
+            </label>
+          </li>
+          <li class="profile-item">
+            <input type="radio" name="pueProfile" value="industry" id="pueIndustry">
+            <label for="pueIndustry" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Industry Average<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+              <span class="profile-meta" data-i18n="profilePueIndustryDesc">PUE 1.56 · Industry average – more conservative, realistic value</span>
+              <a class="profile-source" href="https://arxiv.org/abs/2505.09598" target="_blank">&#8599; Jegham et al. (arXiv:2505.09598, Mai 2025)</a>
+            </label>
+          </li>
+        </ul>
+        <div class="saved-msg" id="pueSavedMsg" data-i18n="saved">Saved!</div>
+      </div>
+
+      <div class="sub-section">
+        <div class="sub-section-header">
+          <span class="sub-section-title" data-i18n="googleBaselineTitle">Google Search Baseline</span>
+        </div>
+        <div class="sub-section-desc" data-i18n="googleBaselineDesc">Choose which data source to use for the energy cost of a regular Google search (without AI).</div>
+        <ul class="profile-list" id="googleBaselineList">
+          <li class="profile-item">
+            <input type="radio" name="googleBaseline" value="classic" id="baselineClassic">
+            <label for="baselineClassic" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Google (2009)<span class="profile-badge" data-i18n="defaultTag">DEFAULT</span></span>
+              <span class="profile-meta" data-i18n="googleBaselineClassicDesc">0.3 Wh per search · official Google figure, still widely cited (conservative)</span>
+              <a class="profile-source" href="https://publicpolicy.googleblog.com/2009/01/powering-google-search.html" target="_blank">&#8599; googleblog.com · Urs Hölzle, Jan. 2009</a>
+            </label>
+          </li>
+          <li class="profile-item">
+            <input type="radio" name="googleBaseline" value="revised" id="baselineRevised">
+            <label for="baselineRevised" class="profile-info" style="cursor:pointer;">
+              <span class="profile-name">Vanderbauwhede (2025)</span>
+              <span class="profile-meta" data-i18n="googleBaselineRevisedDesc">0.04 Wh per search · recalculated for modern hardware, not officially confirmed by Google</span>
+              <a class="profile-source" href="https://arxiv.org/abs/2407.16894" target="_blank">&#8599; arxiv.org/abs/2407.16894</a>
+            </label>
+          </li>
+        </ul>
+        <div class="saved-msg" id="googleBaselineSavedMsg" data-i18n="saved">Saved!</div>
+      </div>
+    </div>
+
+    <!-- 💧 Wasserverbrauch -->
+    <div class="sub-section water-sub-section">
+      <div class="sub-section-header">
+        <span class="sub-section-title" data-i18n="energyProfileWater">Water Consumption</span>
+      </div>
+      <div class="sub-section-desc" data-i18n="energyProfileWaterDesc">Water usage for cooling per AI request. Only scientifically measured for Google Gemini.</div>
+      <ul class="service-list">
+        <li class="service-item">
+          <div class="service-info">
+            <span class="service-name" data-i18n="waterShowMetric">Show water consumption in extension</span>
+          </div>
+          <label class="toggle"><input type="checkbox" id="toggleWater"><span class="slider"></span></label>
+        </li>
+      </ul>
+      <div class="sub-section-note" data-i18n="waterDataNote">Gemini only: 0.26 mL/request (Google, arXiv:2508.15734, Aug. 2025) · All other services: estimated based on industry values</div>
+      <div class="saved-msg" id="waterSavedMsg" data-i18n="saved">Saved!</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-i18n="testcenterAndData">Test Center & Data</div>
+      <div class="section-desc" data-i18n="testcenterAndDataDesc">Test center for checking the extension and managing stored data.</div>
+      <button class="btn" id="btnDevTest" data-i18n="openTestcenter">Open Test Center</button>
+      <button class="btn grey" id="btnClearAll" data-i18n="clearAllData">Delete all tracking data</button>
+    </div>
+
+
+  </div>
+
+
+    </div><!-- end settings-col right -->
+  </div><!-- end settings-grid -->
+
+  <script src="../../shared/i18n.js"></script>
+  <script src="settings.js"></script>
+  <script>
+    (function() {
+      var maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      function onScroll() {
+        var progress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+        // Lichtquelle bewegt sich von 8% (oben) bis 92% (unten) beim Scrollen
+        var light = 8 + progress * 84;
+        document.documentElement.style.setProperty('--scroll-light', light.toFixed(1) + '%');
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', function() {
+        maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        onScroll();
+      });
+    })();
+  </script>
+</body>
+</html>

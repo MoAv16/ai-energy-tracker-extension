@@ -37,7 +37,8 @@
     "poe.com": "poe",
     "www.poe.com": "poe",
     "github.com": "github-copilot",
-    "copilot.github.com": "github-copilot"
+    "copilot.github.com": "github-copilot",
+    "chat.mistral.ai": "mistral"
   };
 
   // URL-Filter: Manche Domains haben KI-Chat nur auf bestimmten Pfaden
@@ -73,29 +74,114 @@
     var settings = data.settings || {};
     var optional = settings.optionalServices || {};
     var standard = settings.standardServices || {};
-    var optionalList = ["deepseek", "grok", "meta", "poe", "github-copilot"];
-    var toggleableStandard = ["copilot", "claude", "google"];
+    var tokenSaverMode = !!settings.tokenSaverMode;
+    var tokenSaverPrompt = settings.tokenSaverPrompt || "Antworte kurz, keine Emojis, nur das Wesentliche";
+    var useNewStrategies = !!settings.useNewStrategies;
+    var optionalList = ["copilot", "claude", "google", "deepseek", "grok", "meta", "poe", "github-copilot", "mistral"];
 
     if (optionalList.indexOf(service) !== -1 && !optional[service]) {
-      return;
+      if (!(standard[service] !== false && (service === "copilot" || service === "claude" || service === "google"))) {
+        return;
+      }
     }
-    if (toggleableStandard.indexOf(service) !== -1 && standard[service] === false) {
+    if ((service === "copilot" || service === "claude" || service === "google") &&
+        !optional.hasOwnProperty(service) && standard[service] === false) {
       return;
     }
 
-    initTracking();
+    initTracking(tokenSaverMode, tokenSaverPrompt, useNewStrategies);
   });
 
-  function initTracking() {
+  function initTracking(tokenSaverMode, tokenSaverPrompt, useNewStrategies) {
     var lastText = "";
     var lastTime = 0;
     var DEBOUNCE = 3000;
+    var TOKEN_SAVER_SUFFIX = tokenSaverPrompt || "Antworte kurz, keine Emojis, nur das Wesentliche";
+
+    function calcXp(totalTokens) {
+      if (totalTokens < 400) return 5;
+      if (totalTokens === 400) return 0;
+      return -Math.ceil((totalTokens - 400) / 100);
+    }
+
+    function fmtXp(xp) {
+      if (xp > 0) return '+' + xp + ' XP';
+      if (xp < 0) return String(xp) + ' XP';
+      return '0 XP';
+    }
+
+    function reflowHudStack() {
+      var top = 70;
+      ['__aem-hud__', '__aem-google-search-hud__', '__aem-google-ai-hud__', '__aem-achievement-hud__'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
+        el.style.right = '20px';
+        el.style.top = top + 'px';
+        var rect = el.getBoundingClientRect();
+        if (!rect.height) return;
+        top = Math.ceil(rect.bottom + 8);
+      });
+    }
+
+    function showAchievementUnlockHud(options) {
+      if (!options) return;
+      var old = document.getElementById('__aem-achievement-hud__');
+      if (old) old.remove();
+
+      var hud = document.createElement('div');
+      hud.id = '__aem-achievement-hud__';
+      hud.style.cssText = [
+        'position:fixed',
+        'top:70px',
+        'right:20px',
+        'z-index:2147483647',
+        'background:rgba(247,243,237,0.98)',
+        'border:1px solid rgba(16,185,129,0.25)',
+        'border-radius:12px',
+        'box-shadow:0 12px 28px rgba(44,35,24,0.16)',
+        'padding:12px',
+        'display:flex',
+        'gap:12px',
+        'align-items:center',
+        'max-width:320px'
+      ].join(';');
+
+      hud.innerHTML =
+        '<img src="' + options.image + '" alt="' + options.title + '" style="width:58px;height:58px;border-radius:12px;object-fit:cover;flex-shrink:0;">' +
+        '<div style="min-width:0;flex:1;">' +
+          '<div style="font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#059669">Achievement unlocked</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1a1008;line-height:1.2;margin-top:3px">' + options.title + '</div>' +
+          '<button id="__aem-achievement-btn__" style="margin-top:8px;background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.25);border-radius:6px;padding:6px 9px;font:600 11px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;cursor:pointer">Zum Achievement</button>' +
+        '</div>' +
+        '<button id="__aem-achievement-close__" style="align-self:flex-start;background:none;border:none;color:#9c8c7a;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;">×</button>';
+
+      document.body.appendChild(hud);
+
+      function removeHud() {
+        if (hud && hud.parentNode) hud.parentNode.removeChild(hud);
+        reflowHudStack();
+      }
+
+      hud.querySelector('#__aem-achievement-btn__').addEventListener('click', function() {
+        window.location.href = chrome.runtime.getURL('pages/dashboard/dashboard.html');
+        removeHud();
+      });
+      hud.querySelector('#__aem-achievement-close__').addEventListener('click', removeHud);
+      reflowHudStack();
+      setTimeout(removeHud, 7000);
+    }
 
     // Gesamte Service-Konfiguration: promptInput + optionale Modi + optionaler Modell-Selektor
     var SERVICE_CONFIG = {
       chatgpt:    {
         promptInput:   '#prompt-textarea',
         modelSelector: '[data-testid="model-switcher-dropdown-button"]',
+        model: {
+          strategy:    'interceptor-first',
+          domSelector: '[data-testid="model-switcher-dropdown-button"]'
+        },
         modes: {
           think:        'button.__composer-pill[aria-label*="Think"]',
           deepResearch: 'button.__composer-pill[aria-label*="Deep Research"]'
@@ -104,13 +190,33 @@
       claude:     {
         promptInput:   '[data-testid="chat-input"]',
         modelSelector: '[data-testid="model-selector-dropdown"] .whitespace-nowrap',
+        model: {
+          strategy:    'interceptor-first',
+          domSelector: '[data-testid="model-selector-dropdown"] .whitespace-nowrap'
+        },
         modes: {
           think: '[data-testid="model-selector-dropdown"] span'
         }
       },
-      gemini:     { promptInput: '.ql-editor[contenteditable="true"]' },
-      perplexity: { promptInput: '#ask-input' },
-      copilot:    { promptInput: '[data-testid="composer-input"]' }
+      gemini:     {
+        promptInput: '.ql-editor[contenteditable="true"]',
+        model: { strategy: 'dom-only', domSelector: null }
+      },
+      perplexity: {
+        promptInput: '#ask-input',
+        model: { strategy: 'dom-only', domSelector: null }
+      },
+      copilot:    {
+        promptInput: '[data-testid="composer-input"]',
+        model: { strategy: 'dom-only', domSelector: null }
+      },
+      mistral:    {
+        promptInput: 'textarea',
+        model: {
+          strategy:    'dom-only',
+          domSelector: '[data-testid="model-selector"] span, .model-selector button span'
+        }
+      }
     };
 
     function isPromptInput(el) {
@@ -131,9 +237,41 @@
 
     function getActiveModel() {
       var cfg = SERVICE_CONFIG[service];
-      if (!cfg || !cfg.modelSelector) return null;
+      if (!cfg) return null;
+
+      if (useNewStrategies && cfg.model) {
+        var strategy = cfg.model.strategy;
+        var domResult = cfg.model.domSelector
+          ? (function() { var el = document.querySelector(cfg.model.domSelector); return el ? el.textContent.trim() : null; })()
+          : null;
+        if (strategy === 'interceptor-first') return detectedModelSlug || domResult;
+        if (strategy === 'dom-first')         return domResult || detectedModelSlug;
+        return domResult; // dom-only
+      }
+
+      // Production: bisheriges Verhalten
+      if (!cfg.modelSelector) {
+        console.warn('[EnergiScout] getActiveModel: kein modelSelector für service:', service);
+        return null;
+      }
       var el = document.querySelector(cfg.modelSelector);
-      return el ? el.textContent.trim() : null;
+      var result = el ? el.textContent.trim() : null;
+      console.log('[EnergiScout] getActiveModel:', result,
+        '| selector:', cfg.modelSelector,
+        '| el found:', !!el,
+        '| innerHTML:', el ? el.innerHTML : 'n/a',
+        '| aria-label:', el ? el.getAttribute('aria-label') : 'n/a',
+        '| data-testid:', el ? el.getAttribute('data-testid') : 'n/a'
+      );
+      if (!el) {
+        var allBtns = document.querySelectorAll('button[data-testid]');
+        var btnInfo = [];
+        for (var i = 0; i < Math.min(allBtns.length, 10); i++) {
+          btnInfo.push(allBtns[i].getAttribute('data-testid') + ': "' + allBtns[i].textContent.trim().slice(0, 40) + '"');
+        }
+        console.warn('[EnergiScout] getActiveModel: Selector nicht gefunden. Buttons mit data-testid:', btnInfo);
+      }
+      return result;
     }
     // Receive real token data from the MAIN world interceptor (interceptor.js)
     // and forward it to the background service worker.
@@ -144,10 +282,14 @@
     window.addEventListener('message', function(e) {
       if (e.source !== window) return;
       if (!e.data) return;
+      if (e.data.type === 'ai-model-detected' || e.data.type === 'ai-real-tokens') {
+        console.log('[EnergiScout] postMessage empfangen:', e.data.type, '| e.data.service:', e.data.service, '| erwartet:', service, '| match:', e.data.service === service);
+      }
       if (e.data.service !== service) return;
 
       // Modell früh erkannt (conversation/init JSON) → Dots-Animation → sanfter Übergang
       if (e.data.type === 'ai-model-detected') {
+        console.log('[EnergiScout] ai-model-detected received:', e.data.model, '| detectionToastModelEl:', !!detectionToastModelEl);
         detectedModelSlug = e.data.model;
         clearInterval(detectionToastDotsTimer);
         if (detectionToastModelEl) {
@@ -163,6 +305,7 @@
       }
 
       if (e.data.type !== 'ai-real-tokens') return;
+      console.log('[EnergiScout] ai-real-tokens received:', { promptTokens: e.data.promptTokens, responseTokens: e.data.responseTokens, model: e.data.model });
       if (!chrome.runtime || !chrome.runtime.id) return;
       chrome.runtime.sendMessage({
         type: 'real-token-data',
@@ -172,8 +315,8 @@
         requestId: lastRequestId
       }, function() { void chrome.runtime.lastError; });
       // Update HUD with verified real token counts + model
-      hudUpdateTokens(hudActiveCard, e.data.promptTokens || 0, e.data.responseTokens || 0, true);
       var model = e.data.model || detectedModelSlug;
+      hudUpdateTokens(hudActiveCard, e.data.promptTokens || 0, e.data.responseTokens || 0, true, model);
       if (model) hudUpdateModel(hudActiveCard, model);
     });
 
@@ -181,7 +324,8 @@
     var HUD_LABELS = {
       chatgpt: 'ChatGPT', gemini: 'Gemini', claude: 'Claude',
       copilot: 'Copilot', perplexity: 'Perplexity', deepseek: 'DeepSeek',
-      grok: 'Grok', meta: 'Meta AI', poe: 'Poe', 'github-copilot': 'GitHub Copilot'
+      grok: 'Grok', meta: 'Meta AI', poe: 'Poe', 'github-copilot': 'GitHub Copilot',
+      mistral: 'Mistral AI'
     };
 
     // HUD energy profiles (mirrors PROFILES in background.js)
@@ -189,17 +333,17 @@
       jegham: {chatgpt:{b:0.120,r:0.00105},copilot:{b:0.120,r:0.00105},gemini:{b:0.050,r:0.00065},
                claude:{b:0.120,r:0.00240},perplexity:{b:0.100,r:0.00100},google:{b:0.300,r:0},
                deepseek:{b:0.080,r:0.00080},grok:{b:0.120,r:0.00100},meta:{b:0.080,r:0.00070},
-               poe:{b:0.120,r:0.00100},'github-copilot':{b:0.120,r:0.00105}},
+               poe:{b:0.120,r:0.00100},'github-copilot':{b:0.120,r:0.00105},mistral:{b:0.090,r:0.00090}},
       altman: {chatgpt:{b:0.094,r:0.00082},copilot:{b:0.094,r:0.00082},gemini:{b:0.039,r:0.00051},
                claude:{b:0.094,r:0.00188},perplexity:{b:0.078,r:0.00078},google:{b:0.235,r:0},
                deepseek:{b:0.063,r:0.00063},grok:{b:0.094,r:0.00078},meta:{b:0.063,r:0.00055},
-               poe:{b:0.094,r:0.00078},'github-copilot':{b:0.094,r:0.00082}},
+               poe:{b:0.094,r:0.00078},'github-copilot':{b:0.094,r:0.00082},mistral:{b:0.070,r:0.00070}},
       epoch:  {chatgpt:{b:0.056,r:0.00049},copilot:{b:0.056,r:0.00049},gemini:{b:0.023,r:0.00030},
                claude:{b:0.056,r:0.00112},perplexity:{b:0.047,r:0.00047},google:{b:0.140,r:0},
                deepseek:{b:0.037,r:0.00037},grok:{b:0.056,r:0.00047},meta:{b:0.037,r:0.00033},
-               poe:{b:0.056,r:0.00047},'github-copilot':{b:0.056,r:0.00049}}
+               poe:{b:0.056,r:0.00047},'github-copilot':{b:0.056,r:0.00049},mistral:{b:0.042,r:0.00042}}
     };
-    var activeHudProfile = 'altman'; // default; overwritten by storage read below
+    var activeHudProfile = 'jegham'; // default; overwritten by storage read below
     chrome.storage.local.get('settings', function(d) {
       if (d.settings && d.settings.energyProfile) activeHudProfile = d.settings.energyProfile;
     });
@@ -226,54 +370,61 @@
         '@keyframes si{from{transform:translateX(112%);opacity:0}to{transform:translateX(0);opacity:1}}',
         '@keyframes so{from{transform:translateX(0);opacity:1}to{transform:translateX(112%);opacity:0}}',
         '@keyframes bl{0%,100%{opacity:1}50%{opacity:0.25}}',
+        '@keyframes op{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.45)}55%{box-shadow:0 0 0 5px rgba(16,185,129,0)}}',
         '.stack{display:flex;flex-direction:column;gap:8px;align-items:flex-end;}',
         '.box{',
           'width:215px;',
-          'background:rgba(6,13,26,0.96);',
-          'border:1px solid rgba(65,197,255,0.18);',
-          'border-radius:10px;',
+          'background:rgba(247,243,237,0.97);',
+          'border:1px solid rgba(160,130,90,0.22);',
+          'border-radius:8px;',
           'padding:11px 13px 10px;',
-          'box-shadow:0 16px 48px rgba(0,0,0,0.55),0 0 0 0.5px rgba(65,197,255,0.06) inset;',
+          'box-shadow:0 8px 24px rgba(44,35,24,0.13);',
           'pointer-events:auto;',
           'animation:si .38s cubic-bezier(.34,1.56,.64,1) both;',
-          'font-family:"Segoe UI",Arial,sans-serif;',
+          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
         '}',
         '.box.out{animation:so .28s ease both;}',
-        '.box.dim{opacity:0.35;transition:opacity .6s ease;}',
+        '.box.dim{opacity:0.4;transition:opacity .6s ease;}',
         '.box.dim:hover{opacity:1;transition:opacity .2s ease;}',
         '.hdr{display:flex;align-items:center;justify-content:space-between;',
-          'margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(65,197,255,0.08);}',
-        '.sn{font:700 12px "Segoe UI",Arial,sans-serif;color:#ddeeff;letter-spacing:.3px;}',
-        '.dot{width:6px;height:6px;border-radius:50%;background:#41c5ff;',
-          'box-shadow:0 0 6px rgba(65,197,255,0.7);animation:bl 2s ease-in-out infinite;flex-shrink:0;}',
-        '.xi{background:none;border:none;color:#1e3050;cursor:pointer;font-size:13px;',
+          'margin-bottom:9px;padding-bottom:8px;border-bottom:1px solid rgba(160,130,90,0.14);}',
+        '.sn{font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2c2318;letter-spacing:-.1px;}',
+        '.dot{width:6px;height:6px;border-radius:50%;background:#10b981;',
+          'animation:op 2.2s ease-in-out infinite;flex-shrink:0;}',
+        '.xi{background:none;border:none;color:#c8b99a;cursor:pointer;font-size:13px;',
           'line-height:1;padding:0;pointer-events:auto;transition:color .2s;}',
-        '.xi:hover{color:#41c5ff;}',
+        '.xi:hover{color:#2c2318;}',
         '.row{display:flex;align-items:center;padding:4px 0;gap:7px;}',
-        '.dir{font:700 9px "Segoe UI",Arial,sans-serif;letter-spacing:.9px;width:40px;flex-shrink:0;}',
-        '.di{color:#41c5ff;}.do{color:#f59e0b;}',
-        '.cnt{font:700 20px "Courier New",Consolas,monospace;flex:1;line-height:1;min-width:0;}',
-        '.ci{color:#41c5ff;}.co{color:#f59e0b;}',
-        '.cnt.spin{color:#1e3a58;animation:bl 0.9s ease-in-out infinite;}',
-        '.un{font:600 8px "Segoe UI",Arial,sans-serif;color:#1a3050;',
+        '.dir{font:700 9px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.9px;width:40px;flex-shrink:0;}',
+        '.di{color:#059669;}.do{color:#d97706;}',
+        '.cnt{font:700 20px ui-monospace,"SF Mono",Consolas,monospace;flex:1;line-height:1;min-width:0;}',
+        '.ci{color:#059669;}.co{color:#d97706;}',
+        '.cnt.spin{color:#c8b99a;animation:bl 0.9s ease-in-out infinite;}',
+        '.un{font:600 8px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#9c8c7a;',
           'text-transform:uppercase;letter-spacing:.5px;}',
-        '.ft{margin-top:7px;padding-top:6px;border-top:1px solid rgba(65,197,255,0.06);',
+        '.ft{margin-top:7px;padding-top:6px;border-top:1px solid rgba(160,130,90,0.12);',
           'display:flex;align-items:center;gap:5px;}',
-        '.wv{font:600 10px "Courier New",Consolas,monospace;color:#2a4a6a;}',
-        '.wl{font:600 8px "Segoe UI",Arial,sans-serif;color:#1a3050;',
+        '.wv{font:600 10px ui-monospace,"SF Mono",Consolas,monospace;color:#5a4c3c;}',
+        '.wl{font:600 8px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#9c8c7a;',
           'text-transform:uppercase;letter-spacing:.5px;}',
-        '.rb{margin-left:auto;font:700 7px "Segoe UI",Arial,sans-serif;padding:2px 5px;',
-          'border-radius:3px;background:rgba(65,197,255,0.1);color:#41c5ff;',
-          'letter-spacing:.6px;opacity:0;transition:opacity .3s;}',
+        '.rb{margin-left:auto;font:700 7px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:2px 5px;',
+          'border-radius:3px;background:rgba(16,185,129,0.12);color:#059669;',
+          'border:1px solid rgba(16,185,129,0.25);letter-spacing:.6px;opacity:0;transition:opacity .3s;}',
         '.rb.on{opacity:1;}',
-        '.hm{font:500 10px "Courier New",Consolas,monospace;color:#2a5a7a;',
-          'letter-spacing:.2px;margin-top:2px;min-height:12px;}'
+        '.hm{font:500 10px ui-monospace,"SF Mono",Consolas,monospace;color:#7a6a58;',
+          'letter-spacing:.1px;margin-top:2px;min-height:12px;}',
+        '.xp{margin-left:6px;font:800 8px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:2px 6px;',
+          'border-radius:999px;letter-spacing:.08em;text-transform:uppercase;}',
+        '.xp.pos{background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.25);}',
+        '.xp.neg{background:rgba(217,119,6,0.10);color:#d97706;border:1px solid rgba(217,119,6,0.22);}',
+        '.xp.zero{background:rgba(160,130,90,0.10);color:#7a6a58;border:1px solid rgba(160,130,90,0.18);}'
       ].join('');
 
       hudStack = document.createElement('div');
       hudStack.className = 'stack';
       hudRoot.appendChild(styleEl);
       hudRoot.appendChild(hudStack);
+      reflowHudStack();
     }
 
     function hudCountUp(el, target, ms) {
@@ -298,6 +449,7 @@
         if (hudActiveCard === card) {
           hudActiveCard = hudCards.length > 0 ? hudCards[hudCards.length - 1] : null;
         }
+        reflowHudStack();
       }, 300);
     }
 
@@ -324,11 +476,14 @@
         '<div class="ft">' +
           '<span class="wl">energy</span>' +
           '<span class="wv hw">&mdash;</span>' +
+          '<span class="xp zero hx">0 XP</span>' +
           '<span class="rb hr">REAL</span>' +
         '</div>';
       hudStack.appendChild(box);
       hudCards.push(box);
       hudActiveCard = box;
+      box._inTokens = inTokens || 0;
+      reflowHudStack();
       box.querySelector('.xi').addEventListener('click', function() { hudHideCard(box); });
       // After 3s: if OUT not yet received → hide card, mark as hiddenEarly.
       // hudUpdateTokens will then show a fresh result card when output arrives.
@@ -342,14 +497,16 @@
       }, 3000);
     }
 
-    function hudUpdateTokens(card, inTok, outTok, isReal) {
+    function hudUpdateTokens(card, inTok, outTok, isReal, model) {
       if (!card) return;
       card._outputReceived = true;
       clearTimeout(card._earlyHideTimer);
+      var effectiveInTok = inTok > 0 ? inTok : (card._inTokens || 0);
+      if (inTok > 0) card._inTokens = inTok;
 
       // Card was hidden early (3s elapsed) → show a fresh result card instead
       if (card._hiddenEarly) {
-        hudShowResult(inTok, outTok, isReal);
+        hudShowResult(effectiveInTok, outTok, isReal, model);
         return;
       }
 
@@ -357,30 +514,41 @@
       var elIn = card.querySelector('.hi');
       var elOut = card.querySelector('.ho');
       var elWh = card.querySelector('.hw');
+      var elXp = card.querySelector('.hx');
       var elR = card.querySelector('.hr');
-      if (elIn && inTok > 0) elIn.textContent = inTok;
+      if (elIn) elIn.textContent = effectiveInTok;
       if (elOut) { elOut.classList.remove('spin'); hudCountUp(elOut, outTok, 850); }
       var prof = HUD_PROFILES[activeHudProfile] || HUD_PROFILES.altman;
       var svcCfg = prof[service] || prof.chatgpt;
       var wh = (svcCfg.b + outTok * svcCfg.r).toFixed(2);
+      var xp = calcXp(effectiveInTok + outTok);
       if (elWh) elWh.textContent = wh + ' Wh';
+      if (elXp) {
+        elXp.textContent = fmtXp(xp);
+        elXp.className = 'xp hx ' + (xp > 0 ? 'pos' : xp < 0 ? 'neg' : 'zero');
+      }
       if (isReal && elR) elR.classList.add('on');
       clearTimeout(card._hudTimer);
       card._hudTimer = setTimeout(function() { hudHideCard(card); }, 8000);
     }
 
-    function hudShowResult(inTok, outTok, isReal) {
+    function hudShowResult(inTok, outTok, isReal, model) {
       hudBuild();
       var svcName = HUD_LABELS[service] || service;
       var prof    = HUD_PROFILES[activeHudProfile] || HUD_PROFILES.altman;
       var svcCfg  = prof[service] || prof.chatgpt;
       var wh      = (svcCfg.b + outTok * svcCfg.r).toFixed(2);
+      var xp      = calcXp((inTok || 0) + outTok);
+      var resolvedModel = model || detectedModelSlug;
       var box     = document.createElement('div');
       box.className = 'box';
       box.innerHTML =
         '<div class="hdr">' +
-          '<div style="display:flex;align-items:center;gap:7px;">' +
-            '<span class="sn">' + svcName + '</span>' +
+          '<div style="display:flex;flex-direction:column;">' +
+            '<div style="display:flex;align-items:center;gap:7px;">' +
+              '<span class="sn">' + svcName + '</span>' +
+            '</div>' +
+            '<span class="hm hmod">' + (resolvedModel || '') + '</span>' +
           '</div>' +
           '<button class="xi">&#x2715;</button>' +
         '</div>' +
@@ -391,10 +559,13 @@
         '<div class="ft">' +
           '<span class="wl">energy</span>' +
           '<span class="wv">' + wh + ' Wh</span>' +
+          '<span class="xp ' + (xp > 0 ? 'pos' : xp < 0 ? 'neg' : 'zero') + '">' + fmtXp(xp) + '</span>' +
           (isReal ? '<span class="rb on">REAL</span>' : '') +
         '</div>';
       hudStack.appendChild(box);
       hudCards.push(box);
+      box._inTokens = inTok || 0;
+      reflowHudStack();
       box.querySelector('.xi').addEventListener('click', function() { hudHideCard(box); });
       box._outputReceived = true;
       box._hiddenEarly    = false;
@@ -420,22 +591,22 @@
       var toast = document.createElement('div');
       toast.style.cssText = [
         'position:fixed;top:60px;right:12px;z-index:2147483647;',
-        'background:rgba(6,13,26,0.96);',
-        'border:1px solid rgba(65,197,255,0.25);',
+        'background:rgba(247,243,237,0.97);',
+        'border:1px solid rgba(160,130,90,0.22);',
         'border-radius:8px;padding:8px 14px;',
         'display:flex;align-items:center;gap:8px;',
-        'font:600 12px "Segoe UI",Arial,sans-serif;',
-        'color:#ddeeff;pointer-events:none;',
-        'box-shadow:0 8px 28px rgba(0,0,0,0.55);'
+        'font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;',
+        'color:#2c2318;pointer-events:none;',
+        'box-shadow:0 8px 24px rgba(44,35,24,0.13);'
       ].join('');
 
       // Modell-Wert-Span mit Transition für sanften Übergang
       var modelVal = document.createElement('span');
-      modelVal.style.cssText = 'transition:opacity 0.35s ease;opacity:0.45;';
+      modelVal.style.cssText = 'transition:opacity 0.35s ease;opacity:0.5;font-family:ui-monospace,"SF Mono",Consolas,monospace;';
       modelVal.textContent = '···';
 
       var modelRow = document.createElement('span');
-      modelRow.style.cssText = 'font:500 10px "Segoe UI",Arial,sans-serif;color:#41c5ff;margin-top:2px;display:block;';
+      modelRow.style.cssText = 'font:500 10px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#059669;margin-top:2px;display:block;';
       modelRow.appendChild(document.createTextNode('Model: '));
       modelRow.appendChild(modelVal);
       detectionToastModelEl = modelVal;
@@ -452,7 +623,7 @@
       textCol.innerHTML = '<span>' + svcName + ' detected</span>';
       textCol.appendChild(modelRow);
 
-      toast.innerHTML = '<span style="color:#41c5ff;font-size:13px;">&#9889;</span>';
+      toast.innerHTML = '<span style="color:#10b981;font-size:13px;">&#9889;</span>';
       toast.appendChild(textCol);
       document.body.appendChild(toast);
       toast.animate(
@@ -468,6 +639,15 @@
         out.onfinish = function() { toast.remove(); detectionToastModelEl = null; };
       }, 3500);
     })();
+
+    chrome.runtime.onMessage.addListener(function(msg) {
+      if (!msg || msg.type !== 'achievement-unlocked' || !msg.event) return;
+      showAchievementUnlockHud({
+        id: msg.event.id,
+        title: msg.event.title,
+        image: chrome.runtime.getURL(msg.event.image)
+      });
+    });
     // ─── End HUD ───────────────────────────────────────────────────
 
     // Recursive shadow-DOM query – pierces all open shadow roots
@@ -519,6 +699,61 @@
       return (input.innerText || input.value || input.textContent || "").trim();
     }
 
+    function hasTokenSaverSuffix(text) {
+      return String(text || "").toLowerCase().indexOf(TOKEN_SAVER_SUFFIX.toLowerCase()) !== -1;
+    }
+
+    function appendTokenSaverPrompt() {
+      if (service !== "chatgpt" || !tokenSaverMode) return getInputText();
+      var input = findInput();
+      if (!input) return "";
+
+      var currentText = (input.innerText || input.value || input.textContent || "").trim();
+      if (!currentText || hasTokenSaverSuffix(currentText)) return currentText;
+
+      var nextText = currentText + "\n\n" + TOKEN_SAVER_SUFFIX;
+
+      if (input.tagName === "TEXTAREA" || (input.tagName === "INPUT" && input.type === "text")) {
+        input.value = nextText;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return nextText;
+      }
+
+      if (input.getAttribute("contenteditable") === "true" || input.tagName === "DIV") {
+        input.focus();
+        var selection = window.getSelection();
+        var range = document.createRange();
+        range.selectNodeContents(input);
+        range.collapse(false);
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+
+        var inserted = false;
+        try {
+          inserted = document.execCommand("insertText", false, "\n\n" + TOKEN_SAVER_SUFFIX);
+        } catch (_) {
+          inserted = false;
+        }
+
+        if (!inserted) {
+          input.textContent = nextText;
+        }
+
+        input.dispatchEvent(new InputEvent("input", {
+          bubbles: true,
+          inputType: "insertText",
+          data: "\n\n" + TOKEN_SAVER_SUFFIX
+        }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        return nextText;
+      }
+
+      return currentText;
+    }
+
     function submitPrompt(text) {
       var now = Date.now();
       if (text === lastText && (now - lastTime) < DEBOUNCE) return;
@@ -562,7 +797,7 @@
     document.addEventListener("keydown", function(e) {
       if (e.key === "Enter" && !e.shiftKey) {
         if (!isPromptInput(e.target)) return;
-        var text = getInputText();
+        var text = appendTokenSaverPrompt() || getInputText();
         if (text) {
           // Kurz warten damit das Senden durchgeht
           setTimeout(function() { submitPrompt(text); }, 100);
@@ -602,7 +837,7 @@
       }
 
       if (dominated) {
-        var inputText = getInputText();
+        var inputText = appendTokenSaverPrompt() || getInputText();
         if (inputText) {
           setTimeout(function() { submitPrompt(inputText); }, 100);
         }
@@ -669,5 +904,3 @@
 
   }
 })();
-
-

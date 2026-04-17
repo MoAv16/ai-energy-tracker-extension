@@ -5,7 +5,8 @@
 (function() {
   function detectService(url) {
     if (url.indexOf('chatgpt.com/backend-api/conversation') !== -1 ||
-        url.indexOf('chatgpt.com/backend-anon/conversation') !== -1) {
+        url.indexOf('chatgpt.com/backend-anon/conversation') !== -1 ||
+        url.indexOf('chatgpt.com/backend-anon/f/conversation') !== -1) {
       return 'chatgpt';
     }
     if (url.indexOf('claude.ai/api/') !== -1 && url.indexOf('/completion') !== -1) {
@@ -42,19 +43,32 @@
     var req = args[0];
     var url = typeof req === 'string' ? req : (req && req.url) || '';
     var service = detectService(url);
+    if (!service && url.indexOf('chatgpt.com') !== -1) {
+      console.log('[EnergiScout] fetch UNMATCHED (chatgpt.com):', url);
+    }
     var result = origFetch.apply(this, args);
 
     if (service) {
+      console.log('[EnergiScout] fetch intercepted:', service, url);
       result.then(function(response) {
         if (!response) return;
-        // conversation/init: normales JSON mit Modell-Info (kein SSE)
-        if (url.indexOf('/conversation/init') !== -1) {
+        // conversation/init + /f/conversation/prepare: normales JSON, kein SSE
+        if (url.indexOf('/conversation/init') !== -1 || url.indexOf('/conversation/prepare') !== -1) {
           response.clone().json().then(function(data) {
-            var slug = data && data.model_limits && data.model_limits[0] && data.model_limits[0].model_slug;
+            console.log('[EnergiScout] conversation/init JSON:', JSON.stringify(data));
+            var slug = (data && data.model_limits && data.model_limits[0] && data.model_limits[0].model_slug)
+                    || (data && data.default_model_slug)
+                    || null;
+            console.log('[EnergiScout] conversation/init model_limits:', data && data.model_limits);
+            console.log('[EnergiScout] conversation/init default_model_slug:', data && data.default_model_slug);
+            console.log('[EnergiScout] conversation/init slug extracted:', slug);
             if (slug) {
+              console.log('[EnergiScout] model detected via init → postMessage:', slug);
               window.postMessage({ type: 'ai-model-detected', service: service, model: slug }, '*');
+            } else {
+              console.warn('[EnergiScout] conversation/init: kein model_slug gefunden. Vollstruktur:', JSON.stringify(data));
             }
-          }).catch(function() {});
+          }).catch(function(err) { console.error('[EnergiScout] conversation/init JSON parse error:', err); });
         } else if (response.body) {
           parseSSEStream(response.clone(), service);
         }
@@ -78,6 +92,7 @@
     function emit() {
       if (sent) return;
       sent = true;
+      console.log('[EnergiScout] emit ai-real-tokens:', { service: service, promptTokens: promptTokens, responseTokens: responseTokens, model: model });
       window.postMessage({
         type: 'ai-real-tokens',
         service: service,
@@ -100,7 +115,13 @@
         var paths = MODEL_SLUG_PATHS[service] || [];
         for (var p = 0; p < paths.length; p++) {
           var found = extractByPath(json, paths[p]);
-          if (found) { model = found; break; }
+          console.log('[EnergiScout] SSE model path check', paths[p].join('.'), '→', found, '| json.type:', json.type);
+          if (found) {
+            model = found;
+            console.log('[EnergiScout] SSE model slug gefunden via path', paths[p].join('.'), '→', model);
+            window.postMessage({ type: 'ai-model-detected', service: service, model: model }, '*');
+            break;
+          }
         }
       }
 

@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "__MSG_appName__",
-  "version": "3.8.0",
+  "version": "3.9.1",
   "description": "__MSG_appDesc__",
   "default_locale": "en",
   "permissions": [
     "storage",
     "unlimitedStorage",
     "notifications",
-    "idle"
+    "idle",
+    "webNavigation"
   ],
   "host_permissions": [
     "*://chatgpt.com/*",
@@ -43,10 +44,11 @@
     "*://poe.com/*",
     "*://www.poe.com/*",
     "*://github.com/copilot*",
-    "*://copilot.github.com/*"
+    "*://copilot.github.com/*",
+    "*://chat.mistral.ai/*"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background/background.js"
   },
   "content_scripts": [
     {
@@ -93,7 +95,8 @@
         "*://poe.com/*",
         "*://www.poe.com/*",
         "*://github.com/copilot*",
-        "*://copilot.github.com/*"
+        "*://copilot.github.com/*",
+        "*://chat.mistral.ai/*"
       ],
       "js": [
         "content/universal.js"
@@ -112,17 +115,27 @@
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "pages/popup/popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
     }
   },
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
   },
-  "options_page": "settings.html"
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/achievements/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "options_page": "pages/settings/settings.html"
 }
