@@ -214,6 +214,154 @@
       margin-top: 0;
       pointer-events: none;
     }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20,14,8,0.55);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: #fefcf8;
+      border: 1px solid rgba(160,130,90,0.22);
+      border-radius: 12px;
+      padding: 24px 22px 20px;
+      max-width: 360px;
+      width: calc(100% - 40px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    }
+
+    .modal-warning-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(220,38,38,0.1);
+      border: 1px solid rgba(220,38,38,0.2);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #991b1b;
+      margin-bottom: 12px;
+    }
+
+    .modal-warning-badge::before {
+      content: '⚠';
+      font-size: 11px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a1008;
+      margin-bottom: 8px;
+    }
+
+    .modal-body {
+      font-size: 12px;
+      color: #5a4c3c;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn-cancel {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid rgba(160,130,90,0.25);
+      background: transparent;
+      font: 600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #7a6a58;
+      cursor: pointer;
+    }
+
+    .modal-btn-cancel:hover { background: rgba(160,130,90,0.08); }
+
+    .modal-btn-confirm {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #dc2626;
+      font: 600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .modal-btn-confirm:hover { background: #b91c1c; }
+
+    .dev-details {
+      display: none;
+      margin-top: 14px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(16,185,129,0.2);
+    }
+
+    .dev-details.visible {
+      display: block;
+    }
+
+    .dev-details-head {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      background: rgba(16,185,129,0.10);
+      border-bottom: 1px solid rgba(16,185,129,0.15);
+      padding: 7px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #065f46;
+    }
+
+    .dev-details-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      padding: 8px 12px;
+      font-size: 11px;
+      border-bottom: 1px solid rgba(160,130,90,0.1);
+      line-height: 1.4;
+      background: rgba(255,255,255,0.5);
+      align-items: start;
+    }
+
+    .dev-details-row:last-child {
+      border-bottom: none;
+    }
+
+    .dev-details-row:nth-child(even) {
+      background: rgba(160,130,90,0.04);
+    }
+
+    .dev-details-feature {
+      font-weight: 600;
+      color: #2c2318;
+    }
+
+    .dev-details-prod {
+      color: #9c8c7a;
+    }
+
+    .dev-details-dev {
+      color: #065f46;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -264,16 +412,6 @@
       <button class="btn green" id="simGoogle" data-service="google" data-prompt="weather today">Google</button>
     </div>
     <div class="result" id="simResult" data-i18n="simPlaceholder">Click a service above...</div>
-  </div>
-
-  <div class="section">
-    <div class="section-header">
-      <div>
-        <div class="section-title" data-i18n="section3Title">Live-Erkennung</div>
-        <div class="section-desc" style="margin-bottom:0;" data-i18n="section3Desc">Keep this window open and open a new tab with e.g. ChatGPT or Google. If you type something and submit, a message should automatically appear below.</div>
-      </div>
-    </div>
-    <div class="result" id="liveResult" style="margin-top:14px;" data-i18n="liveWaiting">Waiting... open an AI service in another tab now</div>
   </div>
 
   <div class="section">
@@ -336,14 +474,71 @@
       <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9c8c7a;margin-bottom:10px;">Build</div>
       <div style="display:flex;align-items:stretch;border:1px solid rgba(160,130,90,0.22);border-radius:8px;overflow:hidden;font-size:12px;font-weight:600;">
         <button id="modeProduction" type="button" style="flex:1;padding:10px 14px;border:none;cursor:pointer;transition:background 0.15s,color 0.15s;text-align:center;line-height:1.3;">
-          Production<br><span style="font-size:10px;font-weight:400;opacity:0.8;">Bestehendes Verhalten</span>
+          Production<br><span id="devProdVersion" style="font-size:10px;font-weight:400;opacity:0.8;"></span>
         </button>
         <div style="width:1px;background:rgba(160,130,90,0.22);"></div>
         <button id="modeDevelopment" type="button" style="flex:1;padding:10px 14px;border:none;cursor:pointer;transition:background 0.15s,color 0.15s;text-align:center;line-height:1.3;">
-          Development<br><span style="font-size:10px;font-weight:400;opacity:0.8;">Neue Strategy Maps</span>
+          Development<br><span style="font-size:10px;font-weight:400;opacity:0.8;">In Arbeit</span>
         </button>
       </div>
       <input type="checkbox" id="toggleNewStrategies" style="display:none;">
+
+      <div class="dev-details" id="devModeDetails">
+        <div class="dev-details-head">
+          <span>Bereich</span>
+          <span>Production</span>
+          <span>Development</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Token-Zählung: ChatGPT</span>
+          <span class="dev-details-prod">estimateTokens() für alle</span>
+          <span class="dev-details-dev">cl100k (Prompt) · Interceptor (Response)</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Token-Zählung: Claude</span>
+          <span class="dev-details-prod">estimateTokens() für alle</span>
+          <span class="dev-details-dev">Interceptor (Prompt + Response)</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Token-Zählung: Copilot</span>
+          <span class="dev-details-prod">cl100k für beide</span>
+          <span class="dev-details-dev">cl100k (Prompt) · DOM (Response)</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Token-Zählung: Gemini & Co.</span>
+          <span class="dev-details-prod">estimateTokens()</span>
+          <span class="dev-details-dev">DOM-Schätzung</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Modell-Erkennung: ChatGPT + Claude</span>
+          <span class="dev-details-prod">CSS-Selector direkt</span>
+          <span class="dev-details-dev">interceptor-first (Interceptor → DOM Fallback)</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Modell-Erkennung: Gemini, Copilot, Mistral…</span>
+          <span class="dev-details-prod">CSS-Selector direkt</span>
+          <span class="dev-details-dev">dom-only</span>
+        </div>
+        <div class="dev-details-row">
+          <span class="dev-details-feature">Modell-Normalisierung</span>
+          <span class="dev-details-prod">Rohslugs unverändert gespeichert</span>
+          <span class="dev-details-dev">normalizeModel()</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="devModeModal">
+    <div class="modal">
+      <div class="modal-warning-badge">Achtung</div>
+      <div class="modal-title">Entwicklungs-Modus aktivieren?</div>
+      <div class="modal-body">
+        Dies ist eine Entwicklerversion. Die neuen Strategy Maps sind funktional implementiert, wurden aber noch nicht vollständig getestet. Es kann zu unerwarteten Fehlern bei der Token-Zählung oder Modell-Erkennung kommen.
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" id="devModalCancel">Abbrechen</button>
+        <button class="modal-btn-confirm" id="devModalConfirm">Trotzdem aktivieren</button>
+      </div>
     </div>
   </div>
 

@@ -122,29 +122,7 @@ simButtons.forEach(function(id) {
   });
 });
 
-// --- 3. Live detection ---
-try {
-  chrome.storage.onChanged.addListener(function(changes, area) {
-    if (area !== "local") return;
-    for (var key in changes) {
-      if (key.indexOf("day_") !== 0) continue;
-      var newVal = changes[key].newValue;
-      var oldVal = changes[key].oldValue;
-      if (!newVal || !newVal.services) continue;
-      for (var svc in newVal.services) {
-        var oldCount = (oldVal && oldVal.services && oldVal.services[svc]) ? oldVal.services[svc].count : 0;
-        var newCount = newVal.services[svc].count;
-        if (newCount > oldCount) {
-          log("liveResult", _("liveDetected", [svc.toUpperCase(), String(newCount), newVal.services[svc].wh.toFixed(1)]));
-        }
-      }
-    }
-  });
-} catch(e) {
-  log("liveResult", _("listenerError", [e.message]));
-}
-
-// --- 4. Demo data / Delete ---
+// --- 3. Demo data / Delete ---
 var btnSimWeek = document.getElementById("btnSimWeek");
 if (btnSimWeek) btnSimWeek.addEventListener("click", function() {
   if (!confirm(_("confirmTestData"))) return;
@@ -497,6 +475,8 @@ if (btnRead) btnRead.addEventListener("click", function() {
     btnProd.style.color      = isDev ? '#7a6a58' : '#fff';
     btnDev.style.background  = isDev ? '#10b981' : '#fefcf8';
     btnDev.style.color       = isDev ? '#fff'    : '#7a6a58';
+    var details = document.getElementById('devModeDetails');
+    if (details) details.classList.toggle('visible', isDev);
   }
 
   function setMode(isDev) {
@@ -513,8 +493,30 @@ if (btnRead) btnRead.addEventListener("click", function() {
     applyVisual(!!((data.settings || {}).useNewStrategies));
   });
 
+  var versionEl = document.getElementById('devProdVersion');
+  if (versionEl) versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
+
+  var modal   = document.getElementById('devModeModal');
+  var btnConfirm = document.getElementById('devModalConfirm');
+  var btnCancel  = document.getElementById('devModalCancel');
+
+  if (btnCancel) btnCancel.addEventListener('click', function() {
+    modal.classList.remove('visible');
+  });
+
+  if (btnConfirm) btnConfirm.addEventListener('click', function() {
+    modal.classList.remove('visible');
+    setMode(true);
+  });
+
+  if (modal) modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.classList.remove('visible');
+  });
+
   if (btnProd) btnProd.addEventListener('click', function() { setMode(false); });
-  if (btnDev)  btnDev.addEventListener('click',  function() { setMode(true);  });
+  if (btnDev)  btnDev.addEventListener('click',  function() {
+    modal.classList.add('visible');
+  });
 })();
 
 // --- 7. Developer Options ---

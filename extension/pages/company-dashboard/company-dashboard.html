@@ -406,42 +406,42 @@
 
     .existing-item {
       display: flex;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: stretch;
+      align-items: center;
+      gap: 14px;
       padding: 12px 14px;
+    }
+
+    .existing-logo-slot {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.55);
+      border: 1px solid rgba(160,130,90,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .existing-logo-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .existing-logo-slot .dashboard-logo-empty {
+      font-size: 10px;
+      color: #9c8c7a;
+      text-align: center;
+      padding: 4px;
+      line-height: 1.3;
     }
 
     .existing-main {
       flex: 1;
       min-width: 0;
-    }
-
-    .existing-header {
-      margin-bottom: 14px;
-    }
-
-    .existing-item .cta-row {
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      gap: 8px;
-      min-width: 162px;
-      flex-shrink: 0;
-    }
-
-    .existing-item .hero-actions {
-      margin-top: 0;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-
-    .existing-item .ghost-btn,
-    .existing-item .secondary-btn {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 8px;
-      min-height: 36px;
     }
 
     .existing-name {
@@ -451,74 +451,42 @@
     }
 
     .existing-meta {
-      font-size: 11px;
-      color: #9c8c7a;
-      margin-top: 2px;
-    }
-
-    .dashboard-stats {
-      display: grid;
-      grid-template-columns: minmax(130px, 160px) minmax(160px, 1fr);
-      gap: 12px;
-      align-items: stretch;
-    }
-
-    .dashboard-stat {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(160,130,90,0.12);
-      background: rgba(255,255,255,0.55);
-      min-height: 72px;
-      align-self: center;
-    }
-
-    .dashboard-stat-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #9c8c7a;
-      margin-bottom: 6px;
-    }
-
-    .dashboard-stat-value {
-      font-size: 13px;
-      font-weight: 700;
-      color: #2c2318;
-      line-height: 1.15;
-      word-break: break-word;
-    }
-
-    .dashboard-stat-sub {
-      margin-top: 6px;
-      font-size: 11px;
-      color: #7a6a58;
-      line-height: 1.35;
-      word-break: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .dashboard-logo-card {
       display: flex;
       align-items: center;
-      justify-content: center;
-      min-height: 96px;
-      padding: 4px 0;
-      overflow: hidden;
-    }
-
-    .dashboard-logo-card img {
-      width: 100%;
-      height: 72px;
-      object-fit: contain;
-      display: block;
-    }
-
-    .dashboard-logo-empty {
+      gap: 8px;
+      margin-top: 3px;
       font-size: 11px;
       color: #9c8c7a;
-      text-align: center;
-      line-height: 1.35;
+    }
+
+    .dept-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #8c7660;
+      background: rgba(160,130,90,0.10);
+      border: 1px solid rgba(160,130,90,0.18);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .existing-item .cta-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .existing-item .ghost-btn,
+    .existing-item .secondary-btn {
+      padding: 7px 12px;
+      border-radius: 8px;
+      min-height: 34px;
+      white-space: nowrap;
     }
 
     .status {
@@ -548,9 +516,8 @@
       .settings-grid { grid-template-columns: 1fr; }
       .field-grid { grid-template-columns: 1fr; }
       .dept-row { grid-template-columns: 1fr; }
-      .existing-item { align-items: flex-start; flex-direction: column; }
-      .existing-item .cta-row { width: 100%; min-width: 0; }
-      .dashboard-stats { grid-template-columns: 1fr; }
+      .existing-item { flex-wrap: wrap; }
+      .existing-item .cta-row { width: 100%; flex-wrap: wrap; }
       .page-header-top { flex-direction: column; align-items: flex-start; }
       .logo-picker { flex-direction: column; align-items: flex-start; }
     }

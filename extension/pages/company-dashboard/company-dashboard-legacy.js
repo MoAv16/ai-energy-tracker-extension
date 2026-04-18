@@ -730,7 +730,37 @@ function renderRaceSection() {
   }
 
   checkRaceFinalization(standings);
+  renderRaceCollapsedPreview(standings);
   renderLastRace();
+}
+
+function renderRaceCollapsedPreview(standings) {
+  const el = document.getElementById('raceCollapsedPreview');
+  if (!el) return;
+
+  if (DEPTS.length < 2) {
+    el.innerHTML = '<span class="race-preview-no-race">Aktuell kein Rennen aktiv.</span>';
+    return;
+  }
+
+  const rankColors = ['#ffd978', '#c8c8c8', '#c8934a'];
+  const top3 = standings.slice(0, 3);
+
+  el.innerHTML =
+    '<div class="race-preview-list">' +
+    top3.map((s, i) => {
+      const dept = DEPTS.find(d => d.id === s.deptId);
+      const isMe = s.deptId === MY_DEPT_ID;
+      return (
+        '<div class="race-preview-item' + (isMe ? ' race-preview-item-me' : '') + '">' +
+          '<span class="race-preview-rank" style="color:' + rankColors[i] + '">' + s.rank + '</span>' +
+          '<span class="race-preview-dot" style="background:' + (dept?.color || '#888') + '"></span>' +
+          '<span class="race-preview-name">' + (dept?.name || s.deptId) + '</span>' +
+          '<span class="race-preview-wh">' + s.whPerMember.toFixed(2) + ' Wh</span>' +
+        '</div>'
+      );
+    }).join('') +
+    '</div>';
 }
 
 // ── Letztes Rennen / Podest ───────────────────────────────

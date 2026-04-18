@@ -212,19 +212,14 @@
       const row = document.createElement('div');
       row.className = 'existing-item';
       row.innerHTML =
+        '<div class="existing-logo-slot">' +
+          logoMarkup +
+        '</div>' +
         '<div class="existing-main">' +
-          '<div class="existing-header">' +
-            '<div class="existing-name"></div>' +
-            '<div class="existing-meta"></div>' +
-          '</div>' +
-          '<div class="dashboard-stats">' +
-            '<div class="dashboard-logo-card">' +
-              logoMarkup +
-            '</div>' +
-            '<div class="dashboard-stat">' +
-              '<div class="dashboard-stat-label">Abteilungen</div>' +
-              '<div class="dashboard-stat-value">' + departmentCount + '</div>' +
-            '</div>' +
+          '<div class="existing-name"></div>' +
+          '<div class="existing-meta">' +
+            '<span class="existing-meta-text"></span>' +
+            (departmentCount > 0 ? '<span class="dept-badge">' + departmentCount + ' Abt.</span>' : '') +
           '</div>' +
         '</div>' +
         '<div class="cta-row">' +
@@ -234,7 +229,7 @@
         '</div>';
 
       row.querySelector('.existing-name').textContent = item.companyName || item.name || item.id;
-      row.querySelector('.existing-meta').textContent = item.name || 'Dashboard';
+      row.querySelector('.existing-meta-text').textContent = item.name || 'Dashboard';
 
       row.querySelector('.open-existing').addEventListener('click', function() {
         setStatus('Oeffne Dashboard ...');
