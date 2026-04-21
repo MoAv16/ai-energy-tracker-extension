@@ -11,13 +11,12 @@ AI Energy Monitor is a browser extension that estimates the energy consumption (
 The extension collects the following data **locally on your device only**:
 
 - **Session duration** on supported AI platforms (e.g. ChatGPT, Gemini, Copilot, Claude, Perplexity, DeepSeek, Grok, Meta AI, Poe)
-- **Estimated energy consumption** (Wh) calculated from session duration
+- **Estimated energy consumption** (Wh) calculated from session duration and prompts
 - **User preferences** such as onboarding status and selected energy source
 
 The extension does **not** collect:
 
 - Personal information (name, email, address, etc.)
-- Chat content, prompts, or AI responses
 - Browsing history beyond supported AI platforms
 - Authentication data or credentials
 - Location data
