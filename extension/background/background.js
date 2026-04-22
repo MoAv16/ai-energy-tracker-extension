@@ -48,7 +48,7 @@ let PUE_FACTOR = PUE_VALUES[DEFAULT_PUE_PROFILE];
 
 // ── Feature Flag: Neue Strategie-Architektur ─────────────────────────────────
 // false = Production (bisheriges Verhalten), true = Development (neue Strategy Maps)
-let DEV_MODE = false;
+let featureFlags = {};
 
 // ── Token-Strategie pro Dienst ────────────────────────────────────────────────
 // prompt:   Methode für Input-Token-Zählung beim Abschicken
@@ -212,8 +212,8 @@ async function loadActiveProfile() {
   const pueProfile = (data.settings && data.settings.pueProfile)           || DEFAULT_PUE_PROFILE;
   applyProfile(profile, baseline);
   PUE_FACTOR = PUE_VALUES[pueProfile] || PUE_VALUES[DEFAULT_PUE_PROFILE];
-  DEV_MODE = !!(data.settings && data.settings.devMode);
-  applyBuildModeBadge(DEV_MODE);
+  featureFlags = (data.settings && data.settings.featureFlags) || {};
+  applyBuildModeBadge(Object.values(featureFlags).some(v => !!v));
 }
 
 // Apply defaults synchronously; async loadActiveProfile() will override
@@ -397,7 +397,8 @@ async function recordRequest(serviceKey, data = {}) {
   const dayData = await getDayData(today);
 
   let promptTokens, responseTokens;
-  if (DEV_MODE) {
+  // @flag newModelDetection
+  if (featureFlags.newModelDetection) {
     promptTokens   = resolveTokenFn(serviceKey, 'prompt')(data.promptText);
     responseTokens = resolveTokenFn(serviceKey, 'response')(data.responseText);
   } else {
@@ -407,6 +408,7 @@ async function recordRequest(serviceKey, data = {}) {
     promptTokens   = tokenize(data.promptText);
     responseTokens = tokenize(data.responseText);
   }
+  // @flag:end
   const wh = calcWh(serviceKey, promptTokens, responseTokens);
   const xpAwarded = calcRequestXp(serviceKey, promptTokens, responseTokens);
 
@@ -430,7 +432,7 @@ async function recordRequest(serviceKey, data = {}) {
     promptTokens,
     responseTokens,
     promptPreview: (data.promptText || "").slice(0, 80),
-    model: DEV_MODE ? normalizeModel(data.model) : (data.model || null),
+    model: featureFlags.newModelDetection ? normalizeModel(data.model) : (data.model || null), // @flag:ternary newModelDetection
     xpAwarded
   });
   if (dayData.requests.length > 50) {
@@ -799,9 +801,14 @@ async function updateResponseTokens(serviceKey, responseText, requestId, tabId) 
   // Skip if this request already has verified real token data from the interceptor.
   if (target.realTokens) return;
 
-  const tokens = DEV_MODE
-    ? resolveTokenFn(serviceKey, 'response')(responseText)
-    : estimateTokens(responseText);
+  // @flag newModelDetection
+  let tokens;
+  if (featureFlags.newModelDetection) {
+    tokens = resolveTokenFn(serviceKey, 'response')(responseText);
+  } else {
+    tokens = estimateTokens(responseText);
+  }
+  // @flag:end
 
   // Delta approach: only add the difference from the previous estimate for this request.
   const prevTokens = target.responseTokens || 0;
@@ -930,8 +937,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     const pueProfile = newSettings.pueProfile           || DEFAULT_PUE_PROFILE;
     applyProfile(profile, baseline);
     PUE_FACTOR = PUE_VALUES[pueProfile] || PUE_VALUES[DEFAULT_PUE_PROFILE];
-    DEV_MODE = !!newSettings.devMode;
-    applyBuildModeBadge(DEV_MODE);
+    featureFlags = newSettings.featureFlags || {};
+    applyBuildModeBadge(Object.values(featureFlags).some(v => !!v));
   }
 });
 

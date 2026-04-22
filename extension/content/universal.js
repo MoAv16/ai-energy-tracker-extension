@@ -75,7 +75,7 @@
   // Module-level settings — updated live via chrome.storage.onChanged
   var tokenSaverMode   = false;
   var tokenSaverPrompt = DEFAULT_TOKEN_SAVER_PROMPT;
-  var devMode = false;
+  var featureFlags = {};
   var activeHudProfile = 'jegham';
   var trackingInitialized = false;
 
@@ -97,7 +97,7 @@
   function applySettings(settings) {
     tokenSaverMode   = !!settings.tokenSaverMode;
     tokenSaverPrompt = settings.tokenSaverPrompt || DEFAULT_TOKEN_SAVER_PROMPT;
-    devMode = !!settings.devMode;
+    featureFlags = settings.featureFlags || {};
     activeHudProfile = settings.energyProfile || 'jegham';
   }
 
@@ -116,8 +116,9 @@
   chrome.storage.onChanged.addListener(function(changes, area) {
     if (area !== 'local' || !changes.settings) return;
     var newSettings = changes.settings.newValue || {};
-    devMode = !!newSettings.devMode;
-    if (!devMode) return;
+    featureFlags = newSettings.featureFlags || {};
+    // @flag liveSettings
+    if (!featureFlags.liveSettings) return;
     applySettings(newSettings);
     if (!trackingInitialized && isServiceEnabled(newSettings)) {
       trackingInitialized = true;
@@ -271,7 +272,8 @@
       var cfg = SERVICE_CONFIG[service];
       if (!cfg) return null;
 
-      if (devMode && cfg.model) {
+      // @flag newModelDetection
+      if (featureFlags.newModelDetection && cfg.model) {
         var strategy = cfg.model.strategy;
         var domResult = cfg.model.domSelector
           ? (function() { var el = document.querySelector(cfg.model.domSelector); return el ? el.textContent.trim() : null; })()
@@ -279,31 +281,32 @@
         if (strategy === 'interceptor-first') return detectedModelSlug || domResult;
         if (strategy === 'dom-first')         return domResult || detectedModelSlug;
         return domResult; // dom-only
-      }
-
-      // Production: bisheriges Verhalten
-      if (!cfg.modelSelector) {
-        console.warn('[EnergiScout] getActiveModel: kein modelSelector für service:', service);
-        return null;
-      }
-      var el = document.querySelector(cfg.modelSelector);
-      var result = el ? el.textContent.trim() : null;
-      console.log('[EnergiScout] getActiveModel:', result,
-        '| selector:', cfg.modelSelector,
-        '| el found:', !!el,
-        '| innerHTML:', el ? el.innerHTML : 'n/a',
-        '| aria-label:', el ? el.getAttribute('aria-label') : 'n/a',
-        '| data-testid:', el ? el.getAttribute('data-testid') : 'n/a'
-      );
-      if (!el) {
-        var allBtns = document.querySelectorAll('button[data-testid]');
-        var btnInfo = [];
-        for (var i = 0; i < Math.min(allBtns.length, 10); i++) {
-          btnInfo.push(allBtns[i].getAttribute('data-testid') + ': "' + allBtns[i].textContent.trim().slice(0, 40) + '"');
+      } else {
+        // Production: bisheriges Verhalten
+        if (!cfg.modelSelector) {
+          console.warn('[EnergiScout] getActiveModel: kein modelSelector für service:', service);
+          return null;
         }
-        console.warn('[EnergiScout] getActiveModel: Selector nicht gefunden. Buttons mit data-testid:', btnInfo);
+        var el = document.querySelector(cfg.modelSelector);
+        var result = el ? el.textContent.trim() : null;
+        console.log('[EnergiScout] getActiveModel:', result,
+          '| selector:', cfg.modelSelector,
+          '| el found:', !!el,
+          '| innerHTML:', el ? el.innerHTML : 'n/a',
+          '| aria-label:', el ? el.getAttribute('aria-label') : 'n/a',
+          '| data-testid:', el ? el.getAttribute('data-testid') : 'n/a'
+        );
+        if (!el) {
+          var allBtns = document.querySelectorAll('button[data-testid]');
+          var btnInfo = [];
+          for (var i = 0; i < Math.min(allBtns.length, 10); i++) {
+            btnInfo.push(allBtns[i].getAttribute('data-testid') + ': "' + allBtns[i].textContent.trim().slice(0, 40) + '"');
+          }
+          console.warn('[EnergiScout] getActiveModel: Selector nicht gefunden. Buttons mit data-testid:', btnInfo);
+        }
+        return result;
       }
-      return result;
+      // @flag:end
     }
     // Receive real token data from the MAIN world interceptor (interceptor.js)
     // and forward it to the background service worker.

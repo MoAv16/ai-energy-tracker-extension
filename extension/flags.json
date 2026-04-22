@@ -1,0 +1,24 @@
+{
+  "flags": [
+    {
+      "id": "liveSettings",
+      "description": "Settings changes (popup/settings switches) take effect immediately in all active tabs without page reload",
+      "status": "dev",
+      "added": "2026-04-22",
+      "files": [
+        "content/universal.js",
+        "content/google.js"
+      ]
+    },
+    {
+      "id": "newModelDetection",
+      "description": "Interceptor-first model detection strategy — uses fetch interceptor slug over DOM-scraping for more reliable model identification",
+      "status": "dev",
+      "added": "2026-04-22",
+      "files": [
+        "content/universal.js",
+        "background/background.js"
+      ]
+    }
+  ]
+}

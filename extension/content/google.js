@@ -88,7 +88,8 @@
   chrome.storage.onChanged.addListener(function(changes, area) {
     if (area !== 'local' || !changes.settings) return;
     var s = changes.settings.newValue || {};
-    if (!s.devMode) return;
+    // @flag liveSettings
+    if (!(s.featureFlags || {}).liveSettings) return;
     _noAI = !!s.googleNoAI;
     if (s.energyProfile) activeProfile = s.energyProfile;
   });
