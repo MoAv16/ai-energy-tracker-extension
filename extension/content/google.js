@@ -79,9 +79,17 @@
   // Hängt " -ai" an jede Google-Suchanfrage an, wenn der Toggle aktiv ist.
   var _noAI = false;
 
-  // Einstellung laden (für Form-Submit-Fallback)
+  // Einstellung laden (fuer Form-Submit-Fallback)
   chrome.storage.local.get('settings', function(cfg) {
     _noAI = !!(cfg.settings && cfg.settings.googleNoAI);
+  });
+
+  // Live-update: No-AI toggle
+  chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area !== 'local' || !changes.settings) return;
+    var s = changes.settings.newValue || {};
+    _noAI = !!s.googleNoAI;
+    if (s.energyProfile) activeProfile = s.energyProfile;
   });
 
   // Suchbox auf der Seite: Form-Submit abfangen (Homepage + Ergebnisseite)

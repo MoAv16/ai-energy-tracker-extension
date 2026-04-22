@@ -69,34 +69,63 @@
   }
   if (!service) return;
 
-  // Pruefe ob optionaler Dienst aktiviert ist
-  chrome.storage.local.get("settings", function(data) {
-    var settings = data.settings || {};
+  var DEFAULT_TOKEN_SAVER_PROMPT = "Antworte kurz, keine Emojis, nur das Wesentliche";
+  var OPTIONAL_LIST = ["copilot", "claude", "google", "deepseek", "grok", "meta", "poe", "github-copilot", "mistral"];
+
+  // Module-level settings — updated live via chrome.storage.onChanged
+  var tokenSaverMode   = false;
+  var tokenSaverPrompt = DEFAULT_TOKEN_SAVER_PROMPT;
+  var useNewStrategies = false;
+  var activeHudProfile = 'jegham';
+  var trackingInitialized = false;
+
+  function isServiceEnabled(settings) {
     var optional = settings.optionalServices || {};
     var standard = settings.standardServices || {};
-    var tokenSaverMode = !!settings.tokenSaverMode;
-    var tokenSaverPrompt = settings.tokenSaverPrompt || "Antworte kurz, keine Emojis, nur das Wesentliche";
-    var useNewStrategies = !!settings.useNewStrategies;
-    var optionalList = ["copilot", "claude", "google", "deepseek", "grok", "meta", "poe", "github-copilot", "mistral"];
-
-    if (optionalList.indexOf(service) !== -1 && !optional[service]) {
+    if (OPTIONAL_LIST.indexOf(service) !== -1 && !optional[service]) {
       if (!(standard[service] !== false && (service === "copilot" || service === "claude" || service === "google"))) {
-        return;
+        return false;
       }
     }
     if ((service === "copilot" || service === "claude" || service === "google") &&
         !optional.hasOwnProperty(service) && standard[service] === false) {
-      return;
+      return false;
     }
+    return true;
+  }
 
-    initTracking(tokenSaverMode, tokenSaverPrompt, useNewStrategies);
+  function applySettings(settings) {
+    tokenSaverMode   = !!settings.tokenSaverMode;
+    tokenSaverPrompt = settings.tokenSaverPrompt || DEFAULT_TOKEN_SAVER_PROMPT;
+    useNewStrategies = !!settings.useNewStrategies;
+    activeHudProfile = settings.energyProfile || 'jegham';
+  }
+
+  // Initial settings load + tracking start
+  chrome.storage.local.get("settings", function(data) {
+    var settings = data.settings || {};
+    applySettings(settings);
+    if (isServiceEnabled(settings)) {
+      trackingInitialized = true;
+      initTracking();
+    }
   });
 
-  function initTracking(tokenSaverMode, tokenSaverPrompt, useNewStrategies) {
+  // Live-update settings whenever storage changes (popup/settings switches)
+  chrome.storage.onChanged.addListener(function(changes, area) {
+    if (area !== 'local' || !changes.settings) return;
+    var newSettings = changes.settings.newValue || {};
+    applySettings(newSettings);
+    if (!trackingInitialized && isServiceEnabled(newSettings)) {
+      trackingInitialized = true;
+      initTracking();
+    }
+  });
+
+  function initTracking() {
     var lastText = "";
     var lastTime = 0;
     var DEBOUNCE = 3000;
-    var TOKEN_SAVER_SUFFIX = tokenSaverPrompt || "Antworte kurz, keine Emojis, nur das Wesentliche";
 
     function calcXp(totalTokens) {
       if (totalTokens < 400) return 5;
@@ -343,11 +372,6 @@
                deepseek:{b:0.037,r:0.00037},grok:{b:0.056,r:0.00047},meta:{b:0.037,r:0.00033},
                poe:{b:0.056,r:0.00047},'github-copilot':{b:0.056,r:0.00049},mistral:{b:0.042,r:0.00042}}
     };
-    var activeHudProfile = 'jegham'; // default; overwritten by storage read below
-    chrome.storage.local.get('settings', function(d) {
-      if (d.settings && d.settings.energyProfile) activeHudProfile = d.settings.energyProfile;
-    });
-
     // Container (fixed, always in DOM) + stack of cards (one per request)
     var hudHost = null;
     var hudRoot = null;
@@ -700,7 +724,7 @@
     }
 
     function hasTokenSaverSuffix(text) {
-      return String(text || "").toLowerCase().indexOf(TOKEN_SAVER_SUFFIX.toLowerCase()) !== -1;
+      return String(text || "").toLowerCase().indexOf(tokenSaverPrompt.toLowerCase()) !== -1;
     }
 
     function appendTokenSaverPrompt() {
@@ -711,7 +735,7 @@
       var currentText = (input.innerText || input.value || input.textContent || "").trim();
       if (!currentText || hasTokenSaverSuffix(currentText)) return currentText;
 
-      var nextText = currentText + "\n\n" + TOKEN_SAVER_SUFFIX;
+      var nextText = currentText + "\n\n" + tokenSaverPrompt;
 
       if (input.tagName === "TEXTAREA" || (input.tagName === "INPUT" && input.type === "text")) {
         input.value = nextText;
@@ -733,7 +757,7 @@
 
         var inserted = false;
         try {
-          inserted = document.execCommand("insertText", false, "\n\n" + TOKEN_SAVER_SUFFIX);
+          inserted = document.execCommand("insertText", false, "\n\n" + tokenSaverPrompt);
         } catch (_) {
           inserted = false;
         }
@@ -745,7 +769,7 @@
         input.dispatchEvent(new InputEvent("input", {
           bubbles: true,
           inputType: "insertText",
-          data: "\n\n" + TOKEN_SAVER_SUFFIX
+          data: "\n\n" + tokenSaverPrompt
         }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
         return nextText;

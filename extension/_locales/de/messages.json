@@ -1,6 +1,6 @@
 {
   "appName": { "message": "KI Energie Monitor: Optimiere deine KI Chats" },
-  "appDesc": { "message": "Verfolge den Energieverbrauch deiner KI-Nutzung in Wattstunden – mit Effizienz-Modus und Alltagsvergleichen." },
+  "appDesc": { "message": "Verfolge den Energieverbrauch deiner KI-Nutzung in Wattstunden und sammle Trophäen." },
 
   "dataFolderName":  { "message": "KI Energie-Monitor" },
   "firstDetectTitle": { "message": "KI erkannt!" },

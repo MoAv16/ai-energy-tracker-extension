@@ -1,6 +1,6 @@
 {
   "appName": { "message": "AI Energy Monitor: Optimize your AI Chats" },
-  "appDesc": { "message": "Track the energy consumption of your AI usage in watt-hours – with efficiency mode and everyday comparisons." },
+  "appDesc": { "message": "Track the energy consumption of your AI usage in watt-hours and collect Trophies." },
 
   "dataFolderName":  { "message": "AI Energy-Monitor" },
   "firstDetectTitle": { "message": "AI detected!" },
