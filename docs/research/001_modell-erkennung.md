@@ -40,37 +40,8 @@ in ChatGPT, Gemini und Perplexity aktuell ausgewaehlt hat?
 ## Technischer Ansatz
 
 ### Empfehlung: Robuster DOM-Scanner
-Statt feste Selektoren zu verwenden, einen flexiblen Scanner bauen:
+Statt feste Selektoren zu verwenden, einen flexiblen Scanner bauen (DOM) 
 
-```javascript
-function detectModel(service) {
-  // Strategie: Suche nach bekannten Modellnamen im sichtbaren DOM
-  var modelNames = {
-    chatgpt: ["gpt-4o", "gpt-4o mini", "gpt-4", "gpt-3.5", "o1", "o1-mini", "o3-mini", "o3", "o4-mini"],
-    gemini: ["gemini 2.0", "gemini 1.5 pro", "gemini 1.5 flash", "gemini ultra", "gemini flash"],
-    perplexity: ["sonar", "claude", "gpt-4", "gemini", "pro", "quick"]
-  };
-
-  var candidates = modelNames[service] || [];
-
-  // Suche in Buttons, Selects, Dropdowns im oberen Bereich
-  var headerEls = document.querySelectorAll(
-    "button, [role='combobox'], [role='listbox'], select, " +
-    "[class*='model'], [class*='selector'], [data-testid*='model']"
-  );
-
-  for (var i = 0; i < headerEls.length; i++) {
-    var text = (headerEls[i].textContent || "").toLowerCase().trim();
-    for (var j = 0; j < candidates.length; j++) {
-      if (text.indexOf(candidates[j]) !== -1) {
-        return candidates[j];
-      }
-    }
-  }
-
-  return "unbekannt";
-}
-```
 
 ### Vor- und Nachteile
 

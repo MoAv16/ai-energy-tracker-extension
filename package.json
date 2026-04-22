@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "flags": "python flags.py",
+    "build": "python build.py"
+  }
+}
