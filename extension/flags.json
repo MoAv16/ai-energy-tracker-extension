@@ -12,13 +12,145 @@
     },
     {
       "id": "newModelDetection",
-      "description": "Interceptor-first model detection strategy — uses fetch interceptor slug over DOM-scraping for more reliable model identification",
+      "description": "Interceptor-first model detection — uses fetch interceptor slug over DOM-scraping for more reliable model identification",
       "status": "dev",
       "added": "2026-04-22",
       "files": [
         "content/universal.js",
         "background/background.js"
       ]
+    },
+    {
+      "id": "energyTracking",
+      "description": "Core feature: monitors AI service usage, calculates energy consumption in Wh per request and persists daily totals",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "serviceDetection",
+      "description": "Automatically identifies active AI service (ChatGPT, Gemini, Claude, Copilot, etc.) from URL and DOM",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "hudOverlay",
+      "description": "Real-time floating HUD card per request showing tokens in/out, energy (Wh), model name and XP delta with slide-in animation",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "tokenCounter",
+      "description": "Per-request token counting with service-specific strategies: exact tokenizer (ChatGPT), interceptor (Claude), DOM estimation (others)",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "realtimeBadge",
+      "description": "Extension icon badge showing today's accumulated energy in Wh with color-coded severity levels",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "gamification",
+      "description": "XP and level system with 10 levels, progress bar in popup, and achievement unlock toasts on AI pages",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "specialAchievements",
+      "description": "Hidden unlockable badges for specific user actions: Hintertür, Wissensdurst, Sieger sind eben Sieger",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "tokenSaver",
+      "description": "Optional prompt suffix for ChatGPT encouraging concise responses — reduces output tokens and improves XP score",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "googleTracking",
+      "description": "Energy tracking for normal Google Search and Google AI Mode (udm=50) with configurable baseline models",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "googleNoAI",
+      "description": "Toggle to automatically append -ai filter to Google searches, routing queries away from AI Overview",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "serviceToggling",
+      "description": "Enable/disable tracking per service — standard services (Copilot, Claude, Google) and optional (DeepSeek, Grok, Meta, Poe, Mistral, GitHub Copilot)",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "energyProfiles",
+      "description": "Three calibrated energy models selectable in settings: Jegham (empirical), Altman (OpenAI estimate), Epoch (FLOP-based)",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "pueMultiplier",
+      "description": "Power Usage Effectiveness factor toggle (hyperscale 1.09 / industry 1.56) to account for datacenter cooling overhead",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "personalDashboard",
+      "description": "Full-page dashboard with interactive weekly chart, day/week/month/year breakdowns, service table and CO2 comparisons",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "companyDashboard",
+      "description": "Multi-user team dashboard with configurable energy budgets, department tracking, company logo and race feature",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "csvExport",
+      "description": "Export personal usage data as CSV from the dashboard for external analysis and reporting",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "fsStorage",
+      "description": "File System Access API (OPFS) for persistent historical data storage beyond chrome.storage.local limits — with write buffer and migration",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "onboarding",
+      "description": "First-run folder picker flow for File System Access consent — once completed, fully automatic thereafter",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "sessionTracking",
+      "description": "Tracks time spent per AI service per day, filtering out sessions under 2 seconds",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "idleDetection",
+      "description": "Pauses active session timer when browser goes idle or screen locks, resumes on activity",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "limitNotification",
+      "description": "Browser notification when daily energy exceeds 100 Wh threshold",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "weeklyChart",
+      "description": "Interactive 7-bar canvas chart in popup with hover tooltips, day click for breakdown, and period tabs (day/week/month)",
+      "status": "prod",
+      "added": "2024-01-01"
     }
   ]
 }
