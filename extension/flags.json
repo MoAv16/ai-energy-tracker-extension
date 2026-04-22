@@ -151,6 +151,29 @@
       "description": "Interactive 7-bar canvas chart in popup with hover tooltips, day click for breakdown, and period tabs (day/week/month)",
       "status": "prod",
       "added": "2024-01-01"
+    },
+    {
+      "id": "modelDetectionToast",
+      "description": "Slide-in toast on AI pages showing detected service and model name with animated dots while waiting for interceptor response",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "alternativeSuggestions",
+      "description": "Detects simple factual queries (what is, who is, capital of…) and suggests using Google Search instead to save energy",
+      "status": "prod",
+      "added": "2024-01-01"
+    },
+    {
+      "id": "waterDisplay",
+      "description": "Show estimated water consumption (WUE) alongside energy stats — WUE_FACTOR defined but not yet wired into calculation or dashboard",
+      "status": "dev",
+      "added": "2026-04-22",
+      "files": [
+        "background/background.js",
+        "pages/settings/settings.js"
+      ],
+      "promote_notes": "Wire WUE_FACTOR into calcWh() and display in HUD and dashboard before promoting"
     }
   ]
 }
