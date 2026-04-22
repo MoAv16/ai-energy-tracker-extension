@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="assets/logo/AI Monitor Logo Chrome Store.png" alt="AI Energy Monitor Banner" width="100%">
-</p>
-
-<p align="center">
   <img src="assets/logo/AI Monitor - Logo 128px.png" alt="AI Energy Monitor Logo" width="80">
 </p>
 
@@ -15,9 +11,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.9.1-blue" alt="Version">
+  <img src="https://img.shields.io/github/manifest-json/v/MoAv16/ai-energy-tracker-extension?filename=extension%2Fmanifest.json&label=version&color=blue" alt="Version">
   <img src="https://img.shields.io/badge/platform-Chrome%20%7C%20Edge-green" alt="Platform">
-  <img src="https://img.shields.io/badge/data-100%25%20local-orange" alt="Privacy">
+  <img src="https://img.shields.io/badge/languages-EN%20%7C%20DE-blueviolet" alt="Languages">
 </p>
 
 ---
@@ -25,12 +21,6 @@
 ## The Problem
 
 A single ChatGPT query uses about **10x more electricity** than a Google search. With AI usage growing rapidly across enterprises and everyday users, the energy impact is massive – yet completely invisible.
-
-<p align="center">
-  <img src="assets/logo/IEA Consumption Chart.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
-  <br>
-  <sub>Source: IEA – Global data centre electricity consumption forecast (2020–2035)</sub>
-</p>
 
 ---
 
@@ -135,6 +125,10 @@ This project uses a named feature flag system to safely test new features before
 ```bash
 npm run flags
 ```
+
+<p align="center" style="padding: 16px 0;">
+  <img src="assets/npm flags menu.png" alt="Feature Flag Manager CLI" width="480">
+</p>
 
 An interactive CLI that lets you:
 

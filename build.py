@@ -1,6 +1,6 @@
 """
 Build-Script: Packt den extension/-Ordner als ZIP ins Projekt-Root.
-Dateiname: AI Monitor v{version}.zip
+Dateiname: moav16-ai-energy-monitor.v{version}.zip
 """
 
 import json
@@ -27,7 +27,7 @@ else:
     new_version = current
     print(f"Version: {new_version}")
 
-output = os.path.join(ROOT, f"AI Monitor v{new_version}.zip")
+output = os.path.join(ROOT, f"moav16-ai-energy-monitor.v{new_version}.zip")
 
 with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as zf:
     for dirpath, dirnames, filenames in os.walk(EXT_DIR):

@@ -41,7 +41,7 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
-            "AI Monitor v${{ steps.version.outputs.version }}.zip" \
+            "moav16-ai-energy-monitor.v${{ steps.version.outputs.version }}.zip" \
             --title "AI Energy Monitor v${{ steps.version.outputs.version }}" \
             --generate-notes
         env:

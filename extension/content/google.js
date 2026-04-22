@@ -76,7 +76,7 @@
   }
 
   // ── No-AI Search Modifier ─────────────────────────────────────────────────
-  // Hängt " -ai" an jede Google-Suchanfrage an, wenn der Toggle aktiv ist.
+  // Hängt "-ai" an jede Google-Suchanfrage an, wenn der Toggle aktiv ist.
   var _noAI = false;
 
   // Einstellung laden (fuer Form-Submit-Fallback)
@@ -102,7 +102,7 @@
     if (form.action.indexOf('/search') === -1) return;
     var inp = form.querySelector('input[name="q"]') || form.querySelector('textarea[name="q"]');
     if (inp && inp.value && inp.value.indexOf('-ai') === -1) {
-      inp.value = inp.value.trim() + ' -ai';
+      inp.value = inp.value.trim() + '-ai';
     }
   }, true);
 
