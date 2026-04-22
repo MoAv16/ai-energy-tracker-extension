@@ -482,7 +482,7 @@ if (btnRead) btnRead.addEventListener("click", function() {
   function setMode(isDev) {
     chrome.storage.local.get('settings', function(data) {
       var s = data.settings || {};
-      s.useNewStrategies = isDev;
+      s.devMode = isDev;
       chrome.storage.local.set({ settings: s }, function() {
         applyVisual(isDev);
       });
@@ -490,7 +490,7 @@ if (btnRead) btnRead.addEventListener("click", function() {
   }
 
   chrome.storage.local.get('settings', function(data) {
-    applyVisual(!!((data.settings || {}).useNewStrategies));
+    applyVisual(!!((data.settings || {}).devMode));
   });
 
   var versionEl = document.getElementById('devProdVersion');

@@ -75,7 +75,7 @@
   // Module-level settings — updated live via chrome.storage.onChanged
   var tokenSaverMode   = false;
   var tokenSaverPrompt = DEFAULT_TOKEN_SAVER_PROMPT;
-  var useNewStrategies = false;
+  var devMode = false;
   var activeHudProfile = 'jegham';
   var trackingInitialized = false;
 
@@ -97,7 +97,7 @@
   function applySettings(settings) {
     tokenSaverMode   = !!settings.tokenSaverMode;
     tokenSaverPrompt = settings.tokenSaverPrompt || DEFAULT_TOKEN_SAVER_PROMPT;
-    useNewStrategies = !!settings.useNewStrategies;
+    devMode = !!settings.devMode;
     activeHudProfile = settings.energyProfile || 'jegham';
   }
 
@@ -111,10 +111,13 @@
     }
   });
 
-  // Live-update settings whenever storage changes (popup/settings switches)
+  // Live-update: always track devMode flag so switching modes works instantly.
+  // Full settings live-update is DEV only — in production, changes apply after page reload.
   chrome.storage.onChanged.addListener(function(changes, area) {
     if (area !== 'local' || !changes.settings) return;
     var newSettings = changes.settings.newValue || {};
+    devMode = !!newSettings.devMode;
+    if (!devMode) return;
     applySettings(newSettings);
     if (!trackingInitialized && isServiceEnabled(newSettings)) {
       trackingInitialized = true;
@@ -268,7 +271,7 @@
       var cfg = SERVICE_CONFIG[service];
       if (!cfg) return null;
 
-      if (useNewStrategies && cfg.model) {
+      if (devMode && cfg.model) {
         var strategy = cfg.model.strategy;
         var domResult = cfg.model.domSelector
           ? (function() { var el = document.querySelector(cfg.model.domSelector); return el ? el.textContent.trim() : null; })()

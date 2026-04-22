@@ -48,7 +48,7 @@ let PUE_FACTOR = PUE_VALUES[DEFAULT_PUE_PROFILE];
 
 // ── Feature Flag: Neue Strategie-Architektur ─────────────────────────────────
 // false = Production (bisheriges Verhalten), true = Development (neue Strategy Maps)
-let USE_NEW_STRATEGIES = false;
+let DEV_MODE = false;
 
 // ── Token-Strategie pro Dienst ────────────────────────────────────────────────
 // prompt:   Methode für Input-Token-Zählung beim Abschicken
@@ -212,8 +212,8 @@ async function loadActiveProfile() {
   const pueProfile = (data.settings && data.settings.pueProfile)           || DEFAULT_PUE_PROFILE;
   applyProfile(profile, baseline);
   PUE_FACTOR = PUE_VALUES[pueProfile] || PUE_VALUES[DEFAULT_PUE_PROFILE];
-  USE_NEW_STRATEGIES = !!(data.settings && data.settings.useNewStrategies);
-  applyBuildModeBadge(USE_NEW_STRATEGIES);
+  DEV_MODE = !!(data.settings && data.settings.devMode);
+  applyBuildModeBadge(DEV_MODE);
 }
 
 // Apply defaults synchronously; async loadActiveProfile() will override
@@ -397,7 +397,7 @@ async function recordRequest(serviceKey, data = {}) {
   const dayData = await getDayData(today);
 
   let promptTokens, responseTokens;
-  if (USE_NEW_STRATEGIES) {
+  if (DEV_MODE) {
     promptTokens   = resolveTokenFn(serviceKey, 'prompt')(data.promptText);
     responseTokens = resolveTokenFn(serviceKey, 'response')(data.responseText);
   } else {
@@ -430,7 +430,7 @@ async function recordRequest(serviceKey, data = {}) {
     promptTokens,
     responseTokens,
     promptPreview: (data.promptText || "").slice(0, 80),
-    model: USE_NEW_STRATEGIES ? normalizeModel(data.model) : (data.model || null),
+    model: DEV_MODE ? normalizeModel(data.model) : (data.model || null),
     xpAwarded
   });
   if (dayData.requests.length > 50) {
@@ -799,7 +799,7 @@ async function updateResponseTokens(serviceKey, responseText, requestId, tabId) 
   // Skip if this request already has verified real token data from the interceptor.
   if (target.realTokens) return;
 
-  const tokens = USE_NEW_STRATEGIES
+  const tokens = DEV_MODE
     ? resolveTokenFn(serviceKey, 'response')(responseText)
     : estimateTokens(responseText);
 
@@ -930,8 +930,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     const pueProfile = newSettings.pueProfile           || DEFAULT_PUE_PROFILE;
     applyProfile(profile, baseline);
     PUE_FACTOR = PUE_VALUES[pueProfile] || PUE_VALUES[DEFAULT_PUE_PROFILE];
-    USE_NEW_STRATEGIES = !!newSettings.useNewStrategies;
-    applyBuildModeBadge(USE_NEW_STRATEGIES);
+    DEV_MODE = !!newSettings.devMode;
+    applyBuildModeBadge(DEV_MODE);
   }
 });
 

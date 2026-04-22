@@ -84,10 +84,11 @@
     _noAI = !!(cfg.settings && cfg.settings.googleNoAI);
   });
 
-  // Live-update: No-AI toggle
+  // Live-update: devMode flag always tracked; full update is DEV only
   chrome.storage.onChanged.addListener(function(changes, area) {
     if (area !== 'local' || !changes.settings) return;
     var s = changes.settings.newValue || {};
+    if (!s.devMode) return;
     _noAI = !!s.googleNoAI;
     if (s.energyProfile) activeProfile = s.energyProfile;
   });
