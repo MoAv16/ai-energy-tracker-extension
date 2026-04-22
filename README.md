@@ -10,15 +10,21 @@
 
 <p align="center">
   <strong>Track the energy consumption of your AI usage in watt-hours.</strong><br>
-  A Chrome extension that monitors how much energy your AI chatbot interactions consume –<br>
-  with real-time tracking, everyday comparisons, and energy-saving tips. All data stays local.
+  A Chrome and Edge extension that monitors how much energy your AI interactions consume –<br>
+  with real-time tracking, gamification, dashboards, and full data export. All data stays local.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-3.9.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/platform-Chrome%20%7C%20Edge-green" alt="Platform">
+  <img src="https://img.shields.io/badge/data-100%25%20local-orange" alt="Privacy">
 </p>
 
 ---
- 
+
 ## The Problem
 
-A single ChatGPT query uses about **10x more electricity** than a Google search. With over 800 million weekly ChatGPT users worldwide, the energy impact of AI is massive – yet invisible. Most people have no idea how much power their AI usage actually costs.
+A single ChatGPT query uses about **10x more electricity** than a Google search. With AI usage growing rapidly across enterprises and everyday users, the energy impact is massive – yet completely invisible.
 
 <p align="center">
   <img src="Logo/IEA Consumption Chart.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
@@ -26,24 +32,30 @@ A single ChatGPT query uses about **10x more electricity** than a Google search.
   <sub>Source: IEA – Global data centre electricity consumption forecast (2020–2035)</sub>
 </p>
 
-## The Solution
-
-AI Energy Monitor makes AI energy consumption **visible and tangible**. It runs quietly in the background, tracks your usage across all major AI platforms, and translates raw watt-hours into relatable comparisons – like how long an LED lamp could run, or how far you could drive a car.
-
 ---
 
 ## Features
 
-### Real-Time Tracking
-- Automatic detection of AI chat sessions across 10+ platforms
-- Per-query energy estimation based on published research data
-- Daily, weekly, and monthly statistics in the popup
+### Real-Time HUD
+Every AI request shows a floating card with tokens in/out, energy in Wh, detected model name, and XP delta — with slide-in animation. Disappears automatically after a few seconds.
 
-### Everyday Comparisons
-Instead of abstract numbers, the extension shows what your consumption actually means:
-- "That equals X Google searches"
-- "Your AI usage could charge a phone to X%"
-- "That's as much as a TV running all evening"
+### Gamification
+Earn XP for efficient prompts, lose XP for long outputs. Level up from *Welcome Newbie* to *Energiescout* across 10 levels. Unlock achievements and trophies for milestones and special actions.
+
+### Personal Dashboard
+Full-page dashboard with interactive weekly bar chart, per-day breakdowns, service comparison table, and period views (day / week / month / year). Export your data as CSV or JSON.
+
+### Company Dashboard
+Team-level energy tracking with configurable budgets, department profiles, company logo, and a race feature for friendly competition. Ideal for enterprise sustainability reporting.
+
+### Token Saver
+Optional ChatGPT mode that appends a brevity prompt to every message, reducing output tokens and improving your XP score automatically.
+
+### Google Search Tracking
+Tracks energy for both classic Google Search and Google AI Mode (udm=50). Includes a toggle to append `-ai` to searches, routing queries away from AI Overview.
+
+### Smart Suggestions
+Detects simple factual queries (what is, who is, capital of…) and suggests using Google Search instead — saving energy where AI isn't needed.
 
 ### Supported Platforms
 
@@ -51,22 +63,13 @@ Instead of abstract numbers, the extension shows what your consumption actually 
 |---|---|---|
 | ChatGPT | Microsoft Copilot | DeepSeek |
 | Google Gemini | Claude | Grok (xAI) |
-| Perplexity | Google Search (AI Overviews) | Meta AI |
+| Perplexity | Google Search | Meta AI |
 | | | Poe |
 | | | GitHub Copilot |
-
-### Energy-Saving Tips
-Rotating tips that help reduce AI energy consumption:
-- "Precise prompts = fewer follow-ups = less electricity"
-- "'Answer briefly' – two words that can cut power consumption in half"
-- "Before you ask: Maybe it's already in the docs?"
-
-### Data Export
-- **JSON** and **CSV** export for personal analysis
-- Optional weekly Wh export for team dashboards
+| | | Mistral AI |
 
 ### Privacy First
-- All data stored locally via `chrome.storage.local`
+- All data stored locally via File System Access API + `chrome.storage.local`
 - No external servers, no tracking, no data leaves your device
 - No chat content or prompts are ever recorded
 
@@ -74,26 +77,28 @@ Rotating tips that help reduce AI energy consumption:
 
 ## Installation
 
-### Chrome Web Store
-Install directly from the [Chrome Web Store](https://chromewebstore.google.com/) (search for "AI Energy Monitor").
+### Chrome / Edge Web Store
+Search for **"AI Energy Monitor"** in the Chrome Web Store or Edge Add-ons.
 
 ### Manual Installation (Developer Mode)
 1. Clone this repository
-2. Open `chrome://extensions/` in Chrome
-3. Enable **Developer mode** (top right)
+2. Open `chrome://extensions/` (Chrome) or `edge://extensions/` (Edge)
+3. Enable **Developer mode**
 4. Click **Load unpacked** and select the `extension/` folder
 
 ---
 
 ## Build
 
-To create a Chrome Web Store ZIP package:
-
 ```bash
+# Create a Chrome Web Store ZIP
 python build.py
+
+# or
+npm run build
 ```
 
-This reads the version from `extension/manifest.json` and creates `AI Monitor v{version}.zip`.
+Reads the version from `extension/manifest.json` and creates `AI Monitor v{version}.zip`.
 
 ---
 
@@ -103,15 +108,9 @@ The `docs/research/` folder contains the scientific basis for energy calculation
 
 - **Per-model energy estimates** (ChatGPT, Gemini, Claude, and more)
 - **Reasoning model overhead** calculations
-- **Web-based vs. CLI AI** comparison
+- **Three calibrated profiles**: Jegham (empirical), Altman (OpenAI estimate), Epoch (FLOP-based)
 
 All estimates are based on published data from the IEA, Sam Altman's blog, and peer-reviewed research.
-
----
-
-## Internationalization
-
-The extension supports **English** (default) and **German** via Chrome's i18n API. Language is determined automatically by the browser locale.
 
 ---
 
@@ -119,9 +118,10 @@ The extension supports **English** (default) and **German** via Chrome's i18n AP
 
 - **Chrome Extension** – Manifest V3, Service Worker, Content Scripts
 - **Frontend** – Vanilla HTML/CSS/JS (no frameworks)
-- **Charts** – Canvas API (popup sparkline)
-- **i18n** – Chrome built-in `chrome.i18n`
-- **Storage** – `chrome.storage.local`
+- **Storage** – File System Access API (OPFS) + `chrome.storage.local` buffer
+- **Charts** – Canvas API
+- **Tokenizer** – cl100k (ChatGPT exact), DOM estimation (others)
+- **i18n** – Chrome built-in `chrome.i18n` (EN + DE)
 - **Build** – Python script
 
 ---

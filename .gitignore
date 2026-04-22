@@ -1,5 +1,8 @@
 # Logos / Assets (lokal behalten, nicht tracken)
-Logo/
+Logo/*
+!Logo/AI Monitor Logo Chrome Store.png
+!Logo/AI Monitor - Logo 128px.png
+!Logo/IEA Consumption Chart.png
 
 # Build artifacts
 *.zip
