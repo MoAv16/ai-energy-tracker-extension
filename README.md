@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="Logo/AI Monitor Logo Chrome Store.png" alt="AI Energy Monitor Banner" width="100%">
+  <img src="assets/logo/AI Monitor Logo Chrome Store.png" alt="AI Energy Monitor Banner" width="100%">
 </p>
 
 <p align="center">
-  <img src="Logo/AI Monitor - Logo 128px.png" alt="AI Energy Monitor Logo" width="80">
+  <img src="assets/logo/AI Monitor - Logo 128px.png" alt="AI Energy Monitor Logo" width="80">
 </p>
 
 <h1 align="center">AI Energy Monitor</h1>
@@ -27,7 +27,7 @@
 A single ChatGPT query uses about **10x more electricity** than a Google search. With AI usage growing rapidly across enterprises and everyday users, the energy impact is massive – yet completely invisible.
 
 <p align="center">
-  <img src="Logo/IEA Consumption Chart.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
+  <img src="assets/logo/IEA Consumption Chart.png" alt="IEA Data Centre Energy Forecast 2020-2035" width="700">
   <br>
   <sub>Source: IEA – Global data centre electricity consumption forecast (2020–2035)</sub>
 </p>
@@ -123,6 +123,41 @@ All estimates are based on published data from the IEA, Sam Altman's blog, and p
 - **Tokenizer** – cl100k (ChatGPT exact), DOM estimation (others)
 - **i18n** – Chrome built-in `chrome.i18n` (EN + DE)
 - **Build** – Python script
+
+---
+
+## For Collaborators
+
+### Feature Flag Manager
+
+This project uses a named feature flag system to safely test new features before they reach production. The registry lives in [`extension/flags.json`](extension/flags.json).
+
+```bash
+npm run flags
+```
+
+An interactive CLI that lets you:
+
+| Command | Action |
+|---|---|
+| `[nr]` | Show details for a flag |
+| `a` | Add a new feature flag |
+| `e <nr>` | Edit description or notes |
+| `p <nr>` | Promote a flag to production (auto-removes `@flag` guards from code + updates registry) |
+
+**How flags work in code:**
+
+New features are wrapped in annotation guards so they only activate in DEV mode:
+
+```js
+// @flag liveSettings
+if (!featureFlags.liveSettings) return;
+// feature code…
+```
+
+Switch between DEV and PROD mode via the **DevTest page** in the extension — this sets all `featureFlags` at once. Individual flags can be toggled via the CLI.
+
+When a feature is stable and ready for production, run `npm run flags` → `p <nr>` — the CLI removes the guards automatically, shows a diff, and asks for confirmation.
 
 ---
 
